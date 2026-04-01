@@ -1,0 +1,15 @@
+# Python / Backend
+__pycache__/
+venv/
+.env
+*.pyc
+
+# Node.js / Frontend
+node_modules/
+dist/          # La carpeta que crea Vite al compilar
+.DS_Store      # Basura de macOS (opcional)
+.vscode/       # Configuración personal de tu editor (opcional)
+
+# Variables de entorno
+.env.local
+.env.development.local
