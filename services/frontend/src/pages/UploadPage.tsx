@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import axios from 'axios';
 
 const UploadPage = () => {
   const [files, setFile] = useState<File[]>([]);
@@ -12,17 +13,30 @@ const UploadPage = () => {
 
   };
 
-  const handleUpload = () => {
-    if (files.length === 0) {
-      alert("Por favor, selecciona uno o más archivos primero.");
-      return;
-    }
-    const fromData = new FormData();
-    files.forEach(file => fromData.append('files', file));
-    fromData.append('preprocess', preprocess.toString());
-    console.log("Enviando a backend:", { files: files.map(f => f.name), preprocess });
-    // Aquí es donde conectarás con tu API de Python usando Axios
-  };
+  const handleUpload = async () => {
+  
+    console.log("1. Intentando enviar..."); // Esto debe salir en F12
+  
+  if (files.length === 0) {
+    alert("Selecciona archivos");
+    return;
+  }
+
+  const formData = new FormData();
+  files.forEach((file) => formData.append('files', file));
+  formData.append('preprocess', String(preprocess));
+
+  try {
+    console.log("2. Llamando a la API...");
+    // CAMBIO: Usa 127.0.0.1 en lugar de localhost por si acaso
+    const response = await axios.post('http://127.0.0.1:8000/upload', formData);
+    
+    console.log("3. Respuesta recibida:", response.data);
+  } catch (error) {
+    console.error("4. ERROR DETECTADO:", error);
+    alert("Error al conectar. Revisa la consola (F12)");
+  }    
+};
 
   return (
     <div style={{ padding: '20px' }}>
