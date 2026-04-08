@@ -55,8 +55,7 @@ const UploadPage = () => {
     formData.append('indices_to_preprocess', JSON.stringify(indicesToProcess));
   try {
     console.log("2. Llamando a la API...");
-    // CAMBIO: Usa 127.0.0.1 en lugar de localhost por si acaso
-    const response = await axios.post('http://127.0.0.1:8000/upload', formData);
+    const response = await axios.post('http://localhost:8000/upload', formData);
     
     console.log("3. Respuesta recibida:", response.data);
     if (response.data.status === "ok") {

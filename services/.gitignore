@@ -16,3 +16,4 @@ dist/          # La carpeta que crea Vite al compilar
 
 #QUitar data
 ./backend/uploads/*
+./backend/models/*
