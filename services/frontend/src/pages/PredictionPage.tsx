@@ -1,10 +1,18 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 interface ProcessedFile {
     filename: string;
     preprocessed: boolean;
 }
+
+const modelos = [
+    {key: 'random_forest', name: 'Random Forest'},
+    {key: 'svm', name: 'Support Vector Machine'},
+    {key: 'naive_bayes', name: 'Naive Bayes'},
+    {key: 'mlp', name: 'Multilayer Perceptron'},
+]
 
 const PredictionPage = () => {
     const location = useLocation();
@@ -29,17 +37,25 @@ const PredictionPage = () => {
         }
     };
 
-    const handleRunPrediction = () => {
-        // Solo enviamos los datos de las predicciones que están activadas
+    const handleRunPrediction = async () => {
         const payload = {
             mio_no_mio: useMio ? mioDocs : null,
             hombro_no_hombro: useHombro ? hombroDocs : null,
             prioridad: usePrioridad ? prioridadDocs : null
         };
 
-        console.log("Enviando configuración seleccionada:", payload);
-        alert("Predicciones enviadas. Revisa la consola.");
-    };
+        try {
+            const response = await axios.post('http://127.0.0.1:8000/predict', payload, {
+                headers: { 
+                    'Content-Type': 'application/json' 
+                }
+            });
+            console.log("Respuesta de predicción:", response.data);
+        } catch (error) {
+            console.error("Error al enviar predicciones:", error);
+            alert("Error al enviar predicciones. Revisa la consola (F12)");
+        }
+     };
 
     return (
         <div style={{ padding: '20px', fontFamily: 'Arial', backgroundColor: '#000000', minHeight: '100vh' }}>
@@ -57,7 +73,7 @@ const PredictionPage = () => {
                             onChange={(e) => setUseMio(e.target.checked)} 
                             style={checkboxLarge}
                         />
-                        <h3 style={{ margin: 0, color: useMio ? '#648f8c' : '#999' }}>Predicción: Mío / No Mío</h3>
+                        <h3 style={{ margin: 0, color: useMio ? '#648f8c' : '#999' }}>Mío / No Mío</h3>
                     </div>
                     
                     <div style={{ opacity: useMio ? 1 : 0.4, pointerEvents: useMio ? 'auto' : 'none' }}>
@@ -84,7 +100,7 @@ const PredictionPage = () => {
                             onChange={(e) => setUseHombro(e.target.checked)} 
                             style={checkboxLarge}
                         />
-                        <h3 style={{ margin: 0, color: useHombro ? '#648f8c' : '#999' }}>Predicción: Hombro / NH</h3>
+                        <h3 style={{ margin: 0, color: useHombro ? '#648f8c' : '#999' }}>Hombro / NH</h3>
                     </div>
 
                     <div style={{ opacity: useHombro ? 1 : 0.4, pointerEvents: useHombro ? 'auto' : 'none' }}>
@@ -111,7 +127,7 @@ const PredictionPage = () => {
                             onChange={(e) => setUsePrioridad(e.target.checked)} 
                             style={checkboxLarge}
                         />
-                        <h3 style={{ margin: 0, color: usePrioridad ? '#648f8c' : '#999' }}>Predicción: Prioridad</h3>
+                        <h3 style={{ margin: 0, color: usePrioridad ? '#648f8c' : '#999'}}>Prioridad</h3>
                     </div>
 
                     <div style={{ opacity: usePrioridad ? 1 : 0.4, pointerEvents: usePrioridad ? 'auto' : 'none' }}>

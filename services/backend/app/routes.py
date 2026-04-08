@@ -36,3 +36,11 @@ async def handle_upload(
         "received": len(files),
         "results": res
     }
+
+@router.post("/predict")
+async def run_prediction():
+    # Aquí iría la lógica para ejecutar los modelos de predicción
+    return {
+        "status": "ok",
+        "message": "Predicciones ejecutadas (simulado)"
+    }
