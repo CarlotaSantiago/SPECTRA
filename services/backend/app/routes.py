@@ -1,11 +1,13 @@
 import json
 import os
+import asyncio
 from pydantic import BaseModel
-from fastapi import APIRouter, File, UploadFile, Form
+from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks
+from fastapi.concurrency import run_in_threadpool
 from typing import List
 from app.services.processor import procesar_archivo
-from services.backend.app.train_models import entrenar_modelos 
-#from app.modelado_msql import entrenar_modelos
+from app.services.train_models import entrenar_modelos
+from app.services.predict_models import predecir_con_modelos
 
 # 1. Usamos el APIRouter()
 router = APIRouter()
@@ -15,14 +17,26 @@ async def handle_upload(
     files: List[UploadFile] = File(...), 
     indices_to_preprocess: str = Form(...) # Recibimos como str para evitar errores 422
 ):
+    """
+    Handle file upload and preprocessing.
+    
+    Args:
+        files: List of uploaded files.
+        indices_to_preprocess: JSON string containing indices of files to preprocess.
+    
+    Returns:
+        Status and results of the upload and preprocessing.
+    """
     try:
-        to_process_list = json.loads(indices_to_preprocess) # Convertimos el string JSON a lista de índices
-    except:
-        to_process_list = [] # Si no es un JSON válido, asumimos que no se preprocesará nada
-        
+        # Convertimos el string JSON a lista de índices
+        to_process_list = json.loads(indices_to_preprocess)
+    except (json.JSONDecodeError, ValueError):
+        # Si no es un JSON válido, asumimos que no se preprocesará nada
+        to_process_list = []
+
     res = []
     print(f"Recibidos {len(files)} archivos. Preprocesar: {to_process_list}")
-    
+
     for index, file in enumerate(files):
         debe_limpiar = index in to_process_list
         # 3. Llamamos a la función correcta con 'await'
@@ -32,7 +46,7 @@ async def handle_upload(
             "preprocessed": debe_limpiar,
             "data": result
         })
-    
+
     return {
         "status": "ok", 
         "received": len(files),
@@ -41,18 +55,28 @@ async def handle_upload(
 
 
 class PredictionBlock(BaseModel):
+    """
+    Configuration block for a prediction section containing model selection and files to process.
+    """
     active: bool
     models: List[str]
     files: List[str]
 
 class PredictionRequest(BaseModel):
+    """
+    Request model for prediction endpoint containing MIO, HOMBRO, and PRIORIDAD blocks.
+    """
     mio: PredictionBlock
     hombro: PredictionBlock
     prioridad: PredictionBlock
 
 
 @router.post("/predict")
-async def run_prediction(data: PredictionRequest):
+async def run_prediction(
+    data: PredictionRequest):
+    """
+    Run prediction models for MIO, HOMBRO, and PRIORIDAD blocks.
+    """
     resultados_globales = {}
 
     # 1. Bloque Mío: Solo se procesa si el usuario lo activó
@@ -83,7 +107,10 @@ async def run_prediction(data: PredictionRequest):
     }
 
 
-async def procesar_bloque(nombre_bloque: str, config: PredictionBlock, target_col: str, group_name: str):
+async def procesar_bloque(
+        nombre_bloque: str,
+        config: PredictionBlock,
+        target_col: str):
     """
     Lógica genérica para verificar entrenamiento y realizar predicción por bloque.
     """
@@ -95,15 +122,15 @@ async def procesar_bloque(nombre_bloque: str, config: PredictionBlock, target_co
 
     for model_key in config.models:
         nombre_modelo = f"{model_key}_{target_col}.pkl"
-        
+
         # 1. ¿Hay que entrenar?
         if nombre_modelo not in modelos_en_disco:
             print(f"[{nombre_bloque}] Entrenando {model_key}...")
-            await entrenar_modelos(config.files, [model_key], target_col)
-        
+            await run_in_threadpool(entrenar_modelos, config.files, model_key, target_col)
+
         # 2. Predecir
         print(f"[{nombre_bloque}] Prediciendo con {model_key}...")
-        res = await predecir_con_modelo(model_key, config.files, target_col)
+        res = await run_in_threadpool(predecir_con_modelos, model_key, config.files, target_col)
         resultados_bloque[model_key] = res
-        
+
     return resultados_bloque
