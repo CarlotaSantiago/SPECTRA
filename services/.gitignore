@@ -13,3 +13,6 @@ dist/          # La carpeta que crea Vite al compilar
 # Variables de entorno
 .env.local
 .env.development.local
+
+#QUitar data
+./backend/uploads/*
