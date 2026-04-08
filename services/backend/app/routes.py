@@ -71,6 +71,40 @@ class PredictionRequest(BaseModel):
     prioridad: PredictionBlock
 
 
+@router.post("/train")
+async def run_training(data: PredictionRequest):
+    """
+    Run training models for MIO, HOMBRO, and PRIORIDAD blocks.
+    
+    Args:
+        data: PredictionRequest containing model configuration for each block.
+    
+    Returns:
+        Status and results of the training process.
+    """
+    resultados_globales = {}
+
+    for nombre_bloque, bloque in [('mio', data.mio), ('hombro', data.hombro), ('prioridad', data.prioridad)]:
+        print(f"Procesando bloque: {nombre_bloque.upper()} - Activo: {bloque.active} - Modelos: {bloque.models} - Archivos: {bloque.files}")
+        if bloque.active:
+            print(f"Bloque {nombre_bloque.upper()} está activo. Verificando modelos...")
+            resultados_globales[nombre_bloque] = {}
+            modelos_en_disco = os.listdir('./models')
+            for model_key in bloque.models:
+                nombre_modelo = f"{model_key}_{nombre_bloque}.pkl"
+                if nombre_modelo not in modelos_en_disco:
+                    print(f"[{nombre_bloque}] Entrenando {model_key}...")
+                    await entrenar_modelos(bloque.files, model_key, nombre_bloque)
+                    resultados_globales[nombre_bloque][model_key] = "entrenado"
+                else:
+                    resultados_globales[nombre_bloque][model_key] = "ya existente"
+
+    if not resultados_globales:
+        return {"status": "warning", "message": "No se seleccionó ningún bloque para entrenamiento."}
+
+    return {"status": "success", "data": resultados_globales}
+
+
 @router.post("/predict")
 async def run_prediction(
     data: PredictionRequest):
@@ -79,20 +113,12 @@ async def run_prediction(
     """
     resultados_globales = {}
 
-    # 1. Bloque Mío: Solo se procesa si el usuario lo activó
     if data.mio.active:
-        res_mio = await procesar_bloque("MIO", data.mio, "etiqueta_mio")
-        resultados_globales["mio"] = res_mio
-
-    # 2. Bloque Hombro: Solo se procesa si el usuario lo activó
+        resultados_globales["mio"] = await procesar_bloque("MIO", data.mio, "etiqueta_mio")
     if data.hombro.active:
-        res_hombro = await procesar_bloque("HOMBRO", data.hombro, "etiqueta_hombro")
-        resultados_globales["hombro"] = res_hombro
-
-    # 3. Bloque Prioridad: Solo se procesa si el usuario lo activó
+        resultados_globales["hombro"] = await procesar_bloque("HOMBRO", data.hombro, "etiqueta_hombro")
     if data.prioridad.active:
-        res_prioridad = await procesar_bloque("PRIORIDAD", data.prioridad, "etiqueta_prioridad")
-        resultados_globales["prioridad"] = res_prioridad
+        resultados_globales["prioridad"] = await procesar_bloque("PRIORIDAD", data.prioridad, "etiqueta_prioridad")
 
     # Validación: Si no se activó NADA, avisamos al usuario
     if not resultados_globales:
@@ -107,28 +133,26 @@ async def run_prediction(
     }
 
 
-async def procesar_bloque(
-        nombre_bloque: str,
-        config: PredictionBlock,
-        target_col: str):
+async def procesar_bloque(nombre_bloque: str, config: PredictionBlock, target_col: str):
     """
-    Lógica genérica para verificar entrenamiento y realizar predicción por bloque.
-    """
-    if not config.active:
-        return None
+    Process a prediction block by checking if models exist and running predictions.
 
+    Args:
+        nombre_bloque: Name of the block (e.g., "MIO", "HOMBRO", "PRIORIDAD").
+        config: PredictionBlock containing model configuration and files to process.
+        target_col: Target column name for the model (e.g., "etiqueta_mio").
+
+    Returns:
+        Dictionary with prediction results for each model.
+    """
     resultados_bloque = {}
-    modelos_en_disco = os.listdir('./models') # Lista de modelos ya entrenados en disco
+    modelos_en_disco = os.listdir('./models')
 
     for model_key in config.models:
         nombre_modelo = f"{model_key}_{target_col}.pkl"
-
-        # 1. ¿Hay que entrenar?
         if nombre_modelo not in modelos_en_disco:
-            print(f"[{nombre_bloque}] Entrenando {model_key}...")
+            print(f"[{nombre_bloque}] Entrenando {model_key} antes de predecir...")
             await run_in_threadpool(entrenar_modelos, config.files, model_key, target_col)
-
-        # 2. Predecir
         print(f"[{nombre_bloque}] Prediciendo con {model_key}...")
         res = await run_in_threadpool(predecir_con_modelos, model_key, config.files, target_col)
         resultados_bloque[model_key] = res

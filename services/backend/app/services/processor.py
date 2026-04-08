@@ -46,7 +46,7 @@ async def procesar_archivo(upload_file, aplicar_limpieza: bool):
                 df[col] = limpiar_datos(df[col])
 
     # 3. Guardar el resultado
-    output_filename = f"procesado_{upload_file.filename}"
+    output_filename = f"{upload_file.filename}"
     # Si el original era CSV, lo convertimos a XLSX para mantener el formato de Excel
     if not output_filename.endswith('.xlsx'):
         output_filename = os.path.splitext(output_filename)[0] + ".xlsx"

@@ -53,8 +53,9 @@ parametresMLP = {
     'max_iter': [200, 300]
 }
 
-DATA_PATH = "./preprocessed"
-MODELS_PATH = "./models"
+BASE_DIR = os.getcwd()
+DATA_PATH = os.path.join(BASE_DIR, "uploads")
+MODELS_PATH = os.path.join(BASE_DIR, "models")
 os.makedirs(MODELS_PATH, exist_ok=True)
 
 
@@ -78,21 +79,24 @@ def marcar_prioridad(text):
     else:
         return 0  
 
-def entrenar_modelos(filenames: list, model_key: str, target_column: str):
+async def entrenar_modelos(filenames: list, model_key: str, target_column: str):
     """
     Entrena el modelo seleccionado usando los archivos proporcionados.
     target_column: 'etiqueta_mio', 'etiqueta_hombro' o 'etiqueta_prioridad'
     """
+    print(BASE_DIR, DATA_PATH, MODELS_PATH)
     print(f"Entrenando modelo {model_key} para {target_column} con archivos: {filenames}")
     # 1. Cargar y concatenar todos los archivos seleccionados
     all_data = []
     for f in filenames:
         path = os.path.join(DATA_PATH, f)
         if os.path.exists(path):
+            print(f"Cargando archivo para entrenamiento: {path}")
             df = pd.read_excel(path)
             all_data.append(df)
     
     if not all_data:
+        print("No se encontraron archivos para entrenar.")
         return {"error": "No hay datos para entrenar"}
 
     data = pd.concat(all_data, ignore_index=True)

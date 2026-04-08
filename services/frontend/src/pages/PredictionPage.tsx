@@ -76,6 +76,33 @@ const PredictionPage = () => {
         }
     };
 
+    const handleRunTraining = async () => {
+        const payload = {
+            mio: {
+                active: useMio,
+                models: mioSelectedModels,
+                files: mioDocs
+            },
+            hombro: {
+                active: useHombro,
+                models: hombroSelectedModels,
+                files: hombroDocs
+            },
+            prioridad: {
+                active: usePrioridad,
+                models: prioridadSelectedModels,
+                files: prioridadDocs
+            }
+        };
+
+        try {
+            const response = await axios.post('http://localhost:8000/train', payload);
+            console.log("Respuesta:", response.data);
+        } catch (error) {
+            console.error("Error:", error);
+        }
+    };
+
     // Sub-componente para renderizar los selectores de modelos
     const ModelSelector = ({ models, selectedList, toggleFn, active }: any) => (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '15px', opacity: active ? 1 : 0.5 }}>
@@ -192,6 +219,8 @@ const PredictionPage = () => {
             <div style={{ marginTop: '30px', textAlign: 'center' }}>
                 <button onClick={() => navigate('/')} style={btnBackStyle}>Volver</button>
                 <button onClick={handleRunPrediction} style={btnRunStyle}>Lanzar Predicciones</button>
+                <button onClick={handleRunTraining} style={btnRunStyle}>Lanzar Entrenamiento</button>
+            
             </div>
         </div>
     );
