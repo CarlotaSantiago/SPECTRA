@@ -45,6 +45,12 @@ const UploadPage = () => {
       formData.append('files', item.file);
       formData.append(`preprocess_${index}`, String(item.preprocess));
     });
+
+    const indicesToProcess = files
+      .map((item, index) => (item.preprocess ? index : null))
+      .filter((index) => index !== null);
+    
+    formData.append('indices_to_preprocess', JSON.stringify(indicesToProcess));
   try {
     console.log("2. Llamando a la API...");
     // CAMBIO: Usa 127.0.0.1 en lugar de localhost por si acaso

@@ -38,6 +38,7 @@ async def procesar_archivo(upload_file, aplicar_limpieza: bool):
 
     # 2. Aplicar lógica de limpieza
     if aplicar_limpieza:
+        print(f"Procesando archivo: {upload_file.filename}")
         columnas_a_limpiar = ['datosclini', 'sospechadiag']
         for col in columnas_a_limpiar:
             if col in df.columns:
