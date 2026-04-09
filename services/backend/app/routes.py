@@ -7,7 +7,7 @@ from fastapi.concurrency import run_in_threadpool
 from typing import List
 from app.services.processor import procesar_archivo
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
-from app.services.predict_models import predecir_con_modelos
+from app.services.predict_models import predecir_final
 
 # 1. Usamos el APIRouter()
 router = APIRouter()
@@ -119,11 +119,11 @@ async def run_prediction(
     resultados_globales = {}
 
     if data.mio.active:
-        resultados_globales["mio"] = await procesar_bloque("MIO", data.mio, "etiqueta_mio")
+        resultados_globales["mio"] = await procesar_bloque("MIO", data.mio, "mio")
     if data.hombro.active:
-        resultados_globales["hombro"] = await procesar_bloque("HOMBRO", data.hombro, "etiqueta_hombro")
+        resultados_globales["hombro"] = await procesar_bloque("HOMBRO", data.hombro, "hombro")
     if data.prioridad.active:
-        resultados_globales["prioridad"] = await procesar_bloque("PRIORIDAD", data.prioridad, "etiqueta_prioridad")
+        resultados_globales["prioridad"] = await procesar_bloque("PRIORIDAD", data.prioridad, "prioridad")
 
     # Validación: Si no se activó NADA, avisamos al usuario
     if not resultados_globales:
@@ -154,16 +154,23 @@ async def procesar_bloque(nombre_bloque: str, config: PredictionBlock, target_co
     modelos_en_disco = os.listdir('./models')
 
     for model_key in config.models:
-        nombre_modelo = f"{model_key}_{target_col}.pkl"
-        if nombre_modelo not in modelos_en_disco:
+        if nombre_bloque == 'PRIORIDAD':
+            # La prioridad usa C1 y C2, comprobamos que al menos esté el C1
+            nombre_archivo_modelo = f"{model_key}_{target_col}_C1.pkl"
+        else:
+            # Mio y Hombro son directos
+            nombre_archivo_modelo = f"{model_key}_{target_col}.pkl"
+        if nombre_archivo_modelo not in modelos_en_disco:
             if nombre_bloque == 'PRIORIDAD':
                 print(f"[{nombre_bloque}] Entrenando {model_key} con lógica específica de prioridad antes de predecir...")
-                await run_in_threadpool(entrenar_modelos_prioridad, config.files, model_key, target_col)
+                await entrenar_modelos_prioridad(config.files, model_key, target_col)
             else:
                 print(f"[{nombre_bloque}] Entrenando {model_key} antes de predecir...")
-                await run_in_threadpool(entrenar_modelos_binarios, config.files, model_key, target_col)
+                await entrenar_modelos_binarios(config.files, model_key, target_col)
         print(f"[{nombre_bloque}] Prediciendo con {model_key}...")
-        res = await run_in_threadpool(predecir_con_modelos, model_key, config.files, target_col)
+        res = await predecir_final(model_key, config.files, target_col)
         resultados_bloque[model_key] = res
+    
+    print(f"Resultados para bloque {nombre_bloque}: {resultados_bloque}")
 
     return resultados_bloque

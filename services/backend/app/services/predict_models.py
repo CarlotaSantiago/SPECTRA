@@ -1,75 +1,137 @@
 import os
 import joblib
-import pandas as pd
 import numpy as np
-from scipy.sparse import issparse
+import pandas as pd
+from scipy.sparse import hstack
 
-MODELS_PATH = "./models"
-DATA_PATH = "./preprocessed"
+BASE_DIR = os.getcwd()
+DATA_PATH = os.path.join(BASE_DIR, "uploads")
+MODELS_PATH = os.path.join(BASE_DIR, "models")
 
-def predecir_con_modelos(model_key: str, filenames: list, target_col: str):
+modelos_binarios = ['random_forest', 'svm', 'naive_bayes', 'mlp']
+
+def concatenar_archivos(filenames: list):
+    """Combina múltiples archivos Excel en un único DataFrame.
+    
+    Args:
+        filenames: Lista de nombres de archivos a procesar
+    
+    Returns:
+        DataFrame con los datos combinados y limpios
     """
-    Carga los archivos, los concatena y predice el resultado final como un single block.
+    all_data = []
+
+    for f in filenames:
+        path = os.path.join(DATA_PATH, f)
+        if os.path.exists(path):
+            df = pd.read_excel(path)
+            all_data.append(df)
+
+    if not all_data:
+        return pd.DataFrame()
+
+    data = pd.concat(all_data, ignore_index=True)
+    data.replace(['None', 'NaN', 'nan'], np.nan, inplace=True)
+    data.dropna(subset=['datosclini', 'sospechadiag', 'edad'], inplace=True)
+
+    return data
+
+async def predecir_final(model_key: str, filenames: list, target_col: str):
+    """Realiza predicciones usando modelos entrenados para el target especificado.
+    
+    Args:
+        model_key: Clave del modelo a usar ('random_forest', 'svm', 'naive_bayes', 'mlp')
+        filenames: Lista de archivos Excel con los datos a predecir
+        target_col: Columna objetivo ('prioridad', 'mio', 'hombro')
+    
+    Returns:
+        Dict con las predicciones y confianzas, o error si falla
     """
-    print(f"Prediciendo con modelo {model_key} para {target_col} usando archivos: {filenames}")
-    # 1. Definir rutas de los componentes del modelo
-    model_file = os.path.join(MODELS_PATH, f"{model_key}_{target_col}.pkl")
-    vectorizer_file = os.path.join(MODELS_PATH, f"vectorizer_{target_col}.pkl")
-    kbest_file = os.path.join(MODELS_PATH, f"kbest_{target_col}.pkl")
-    print(f"Rutas de modelos: {model_file}, {vectorizer_file}, {kbest_file}")
-    # Verificación de existencia
-    if not all(os.path.exists(p) for p in [model_file, vectorizer_file, kbest_file]):
-        return {"error": "Modelos no encontrados. Por favor, entrena primero."}
-    print("Modelos encontrados, procediendo con la predicción...")
+    # 1. Preparación
+    data = concatenar_archivos(filenames)
+    if data.empty:
+        return {"error": "No hay datos"}
+
+    data['texto'] = data['datosclini'].astype(str) + " " + data['sospechadiag'].astype(str)
+
+    # 2. Scaler de Edad
+    scaler_path = os.path.join(MODELS_PATH, f"scaler_{target_col}.pkl")
+
+    if os.path.exists(scaler_path):
+        scaler = joblib.load(scaler_path)
+        data['edad_scaled'] = scaler.transform(data[['edad']])
+
+    # --- FUNCIÓN INTERNA CON PROBABILIDADES ---
+    def ejecutar_inferencia(data_subset, nombre_fichero_base):
+        v_path = os.path.join(MODELS_PATH, f"vectorizer_{nombre_fichero_base}.pkl")
+        k_path = os.path.join(MODELS_PATH, f"kbest_{nombre_fichero_base}.pkl")
+        m_path = os.path.join(MODELS_PATH, f"{model_key}_{nombre_fichero_base}.pkl")
+
+        if not all(os.path.exists(p) for p in [v_path, k_path, m_path]): return None
+
+        v, k, m = joblib.load(v_path), joblib.load(k_path), joblib.load(m_path)
+
+        x_f = k.transform(v.transform(data_subset['texto']))
+        if 'edad_scaled' in data_subset.columns:
+            x_f = hstack([x_f, data_subset[['edad_scaled']].values])
+        if model_key == 'naive_bayes': 
+            x_f = x_f.toarray()
+
+        preds = m.predict(x_f)
+
+        try:
+            probs = m.predict_proba(x_f)
+            confianzas = [round(np.max(p) * 100, 2) for p in probs]
+        except Exception:
+            confianzas = [None] * len(preds)
+
+        return preds, confianzas
+
+    def get_label(val, col):
+        """Convierte valor numérico a etiqueta según el target."""
+        if col == "mio":
+            return "MIO" if val == 0 else "NO MIO"
+
+        if col == "hombro":
+            return "HOMBRO" if val == 1 else "NO HOMBRO"
+
+        return {0: 'A', 1: 'B', 2: 'C'}.get(val, val)
+
+    def format_confianza(c):
+
+        return f"{c}%" if c else "N/A"
+
+    # 3. Lógica de Respuesta
     try:
-        # 2. Cargar y CONCATENAR los documentos (Igual que en el entrenamiento)
-        all_data = []
-        for f in filenames:
-            path = os.path.join(DATA_PATH, f)
-            if os.path.exists(path):
-                df = pd.read_excel(path)
-                # Opcional: añadir una columna para saber de qué archivo venía cada fila
-                df['archivo_origen'] = f
-                all_data.append(df)
-        print(f"Archivos cargados: {len(all_data)}. Filas por archivo: {[len(df) for df in all_data]}")
-        if not all_data:
-            return {"error": "No se encontraron los archivos de datos."}
+        es_prioridad_binario = target_col == "prioridad" and model_key in modelos_binarios
 
-        # Creamos un único DataFrame
-        data_total = pd.concat(all_data, ignore_index=True)
-        print(f"Datos concatenados para predicción: {data_total.shape[0]} filas, {data_total.shape[1]} columnas")
-        # 3. Preparación del texto (mismo formato que el entrenamiento)
-        # Importante: No borramos filas aquí para no perder el orden del Excel original
-        data_total['texto_final'] = (
-            data_total['datosclini'].fillna('') + " " + data_total['sospechadiag'].fillna('')
-        )
+        if es_prioridad_binario:
+            res_c1 = ejecutar_inferencia(data, f"{target_col}_C1")
+            if res_c1 is None: return {"error": "Faltan modelos C1"}
+            preds_c1, confs_c1 = res_c1
 
-        # 4. Cargar transformadores y modelo
-        vectorizer = joblib.load(vectorizer_file)
-        kbest = joblib.load(kbest_file)
-        model = joblib.load(model_file) # Asegúrate de cargar el best_model guardado
-        print("Modelos cargados correctamente, realizando transformaciones y predicción...")
-        # 5. Transformación y Predicción
-        X_vec = vectorizer.transform(data_total['texto_final'])
-        X_selected = kbest.transform(X_vec)
-        print(f"Transformaciones completas: {X_vec.shape} -> {X_selected.shape}")
-        if issparse(X_selected):
-            try:
-                X_selected = X_selected.toarray()
-            except: pass
+            final_res = []
+            for i, p in enumerate(preds_c1):
+                if p == 1:
+                    final_res.append({"label": "A", "confianza": f"{confs_c1[i]}%"})
+                else:
+                    fila = data.iloc[[i]]
+                    preds_c2, confs_c2 = ejecutar_inferencia(fila, f"{target_col}_C2")
+                    label = "B" if preds_c2[0] == 1 else "C"
+                    final_res.append({"label": label, "confianza": f"{confs_c2[0]}%"})
+            return {"status": "success", "tipo": "cascada", "predicciones": final_res}
 
-        # Realizamos la predicción de todo el bloque junto
-        predicciones = model.predict(X_selected)
-        print(f"Predicción completa para {len(predicciones)} filas")
-        # 6. Preparar la respuesta
-        # Devolvemos una lista de resultados que el frontend pueda mapear
-        return {
-            "status": "success",
-            "total_filas": len(data_total),
-            "predicciones": predicciones.tolist(),
-            # Opcional: puedes devolver info extra para la tabla del frontend
-            "indices": data_total.index.tolist() 
-        }
+        res = ejecutar_inferencia(data, target_col)
+        if res is None:
+            return {"error": "Modelos no encontrados"}
+        preds, confs = res
+
+        final_res = [
+            {"label": get_label(p, target_col), "confianza": format_confianza(c)}
+            for p, c in zip(preds, confs)
+        ]
+
+        return {"status": "success", "tipo": "simple", "predicciones": final_res}
 
     except Exception as e:
-        return {"error": f"Error en la predicción concatenada: {str(e)}"}
+        return {"error": str(e)}
