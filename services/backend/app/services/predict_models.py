@@ -100,12 +100,15 @@ async def predecir_final(model_key: str, filenames: list, target_col: str):
 
     def format_confianza(c):
 
-        return f"{c}%" if c else "N/A"
+        return round(c / 100, 4) if c else 0.0
 
     # 3. Lógica de Respuesta
     try:
         es_prioridad_binario = target_col == "prioridad" and model_key in modelos_binarios
+        columnas_interes = ['edad', 'datosclini', 'sospechadiag']
+        datos_originales = data[columnas_interes].fillna("").to_dict(orient='records')
 
+        print("datos originales \n\n\n\n\n" + str(datos_originales[:5]) + "\n\n\n\n\nFIN DE DATOS ORIGINALES")
         if es_prioridad_binario:
             res_c1 = ejecutar_inferencia(data, f"{target_col}_C1")
             if res_c1 is None:
@@ -115,13 +118,21 @@ async def predecir_final(model_key: str, filenames: list, target_col: str):
             final_res = []
             for i, p in enumerate(preds_c1):
                 if p == 1:
-                    final_res.append({"label": "A", "confianza": f"{confs_c1[i]}%"})
+                    final_res.append({
+                        "label": "A",
+                        "confianza": format_confianza(confs_c1[i])})
                 else:
                     fila = data.iloc[[i]]
                     preds_c2, confs_c2 = ejecutar_inferencia(fila, f"{target_col}_C2")
-                    label = "B" if preds_c2[0] == 1 else "C"
-                    final_res.append({"label": label, "confianza": f"{confs_c2[0]}%"})
-            return {"status": "success", "tipo": "cascada", "predicciones": final_res}
+                    label = "B" if preds_c2[0][0] == 1 else "C"
+                    final_res.append({"label": label, "confianza": format_confianza(confs_c2[1][0])})
+
+            resultado_final = {
+                "status": "success",
+                "tipo": "simple",
+                "predicciones": final_res, 
+                "datos_originales": datos_originales
+            }
 
         res = ejecutar_inferencia(data, target_col)
         if res is None:
@@ -133,7 +144,16 @@ async def predecir_final(model_key: str, filenames: list, target_col: str):
             for p, c in zip(preds, confs)
         ]
 
-        return {"status": "success", "tipo": "simple", "predicciones": final_res}
+        resultado_final = {
+            "status": "success",
+            "tipo": "simple",
+            "predicciones": final_res, 
+            "datos_originales": datos_originales
+        }
+
+        print("DEBUG BACKEND: Enviando", len(datos_originales), "filas originales")
+        print("DEBUG BACKEND: Primeras predicciones:", final_res[:2])
+        return resultado_final
 
     except Exception as e:
         return {"error": str(e)}

@@ -183,7 +183,6 @@ async def entrenar_modelos_prioridad(
     # FLUJO 1: MODELOS BINARIOS EN CASCADA
     # ---------------------------------------------------------
     if model_key in modelos_binarios:
-        print(f"Iniciando entrenamiento en CASCADA para {model_key}")
         # --- NIVEL 1: A vs (B y C) ---
         data['y_c1'] = data['prioridad'].apply(lambda x: marcar_prioridad_binaria(x, 'A'))
         res_c1 = await ejecutar_entrenamiento(
@@ -214,7 +213,6 @@ async def entrenar_modelos_prioridad(
     # FLUJO 2: MODELO TERCIARIO (DIRECTO)
     # ---------------------------------------------------------
     else:
-        print(f"Iniciando entrenamiento TERCIARIO para {model_key}")
         data['y_multi'] = data['prioridad'].apply(marcar_prioridad_terciaria)
         resultado = await ejecutar_entrenamiento(
             data, 
@@ -257,14 +255,11 @@ async def ejecutar_entrenamiento(
     path_vectorizer = os.path.join(MODELS_PATH, nombre_vectorizer)
 
     if os.path.exists(path_kbest) and os.path.exists(path_vectorizer):
-        print(f"Modelos preexistentes encontrados para {save_name}, cargando...")
         vectorizer = joblib.load(path_vectorizer)
         kbest = joblib.load(path_kbest)
         x_vec = vectorizer.transform(df['texto'])
         x_text = kbest.transform(x_vec)
-        print(f"Modelos cargados y datos transformados para {save_name}")
     else:
-        print(f"Modelos no encontrados para {save_name}, entrenando desde cero...")
         vectorizer = CountVectorizer(analyzer='word', ngram_range=(1, 2))
         x_vec = vectorizer.fit_transform(df['texto'])
         kbest = SelectKBest(mutual_info_classif, k=7500)
@@ -315,14 +310,12 @@ async def entrenar_modelos_binarios(filenames: list, model_key: str, target_colu
     data.dropna(inplace=True)
     data['texto'] = data['datosclini'] + " " + data['sospechadiag']
 
-    print(f"Creando etiquetas para {target_column}...")
     if target_column == "mio":
         data['entrenar'] = data['desprest'].apply(marcar_especialidad)
     elif target_column == "hombro":
         data['entrenar'] = data['desprest'].apply(marcar_sala)
     else:
         data['entrenar'] = data['desprest'].apply(marcar_prioridad_terciaria)
-    print(f"Etiquetas creadas para {target_column}")
 
     y = data['entrenar']
     nombre_kbest = f"kbest_{target_column}.pkl"
@@ -331,19 +324,15 @@ async def entrenar_modelos_binarios(filenames: list, model_key: str, target_colu
     path_vectorizer = os.path.join(MODELS_PATH, nombre_vectorizer)
 
     if os.path.exists(path_kbest) and os.path.exists(path_vectorizer):
-        print(f"Modelos preexistentes encontrados para {target_column}, cargando...")
         vectorizer = joblib.load(path_vectorizer)
         kbest = joblib.load(path_kbest)
         x = vectorizer.transform(data['texto'])
         x_selected = kbest.transform(x)
-        print(f"Modelos cargados y datos transformados para {target_column}")
     else:
         vectorizer = CountVectorizer(analyzer='word', ngram_range=(1, 2))
         x = vectorizer.fit_transform(data['texto'])
-        print(f"Vectorización completa: {x.shape[1]} características")
         kbest = SelectKBest(mutual_info_classif, k=7500)
         x_selected = kbest.fit_transform(x, y)
-        print(f"Selección de características completa: {x_selected.shape[1]} características seleccionadas")
         joblib.dump(vectorizer, os.path.join(MODELS_PATH, f"vectorizer_{target_column}.pkl"))
         joblib.dump(kbest, os.path.join(MODELS_PATH, f"kbest_{target_column}.pkl"))
 
@@ -362,7 +351,6 @@ async def entrenar_modelos_binarios(filenames: list, model_key: str, target_colu
         x_train = x_selected.toarray() if model_key == 'naive_bayes' else x_selected
 
         # 4. Búsqueda de los mejores hiperparámetros
-        print(f"Buscando mejores parámetros para {model_key}...")
         random_search = RandomizedSearchCV(
             model, 
             param_distributions=param_dist, 
@@ -373,16 +361,13 @@ async def entrenar_modelos_binarios(filenames: list, model_key: str, target_colu
             n_jobs=-1, 
             random_state=42
         )
-        print(f"Datos para RandomizedSearchCV preparados: {x_train.shape}, {y.shape}")
         random_search.fit(x_train, y)
-        print(f"Mejores parámetros encontrados: {random_search.best_params_}")
         # 5. Guardar el mejor modelo resultante
         best_model = random_search.best_estimator_
         # Usar path absoluto para asegurar el guardado
         file_path = os.path.abspath(os.path.join(MODELS_PATH, f"{model_key}_{target_column}.pkl"))
 
         joblib.dump(best_model, file_path)
-        print(f"!!! ARCHIVO ESCRITO EN: {file_path}") # Esto te confirmará la ruta en la consola
         return {"status": "trained", "best_params": random_search.best_params_}
 
     return {"error": "Modelo no soportado"}
