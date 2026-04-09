@@ -70,7 +70,10 @@ const PredictionPage = () => {
 
         try {
             const response = await axios.post('http://localhost:8000/predict', payload);
-            console.log("Respuesta:", response.data);
+            if (response.data.status === "success") {
+            // Navegamos a la ruta '/results' y pasamos los datos en el estado de la navegación
+            navigate('/results', { state: { results: response.data.data } });
+            }
         } catch (error) {
             console.error("Error:", error);
         }

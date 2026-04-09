@@ -67,7 +67,8 @@ async def predecir_final(model_key: str, filenames: list, target_col: str):
         k_path = os.path.join(MODELS_PATH, f"kbest_{nombre_fichero_base}.pkl")
         m_path = os.path.join(MODELS_PATH, f"{model_key}_{nombre_fichero_base}.pkl")
 
-        if not all(os.path.exists(p) for p in [v_path, k_path, m_path]): return None
+        if not all(os.path.exists(p) for p in [v_path, k_path, m_path]):
+            return None
 
         v, k, m = joblib.load(v_path), joblib.load(k_path), joblib.load(m_path)
 
@@ -107,7 +108,8 @@ async def predecir_final(model_key: str, filenames: list, target_col: str):
 
         if es_prioridad_binario:
             res_c1 = ejecutar_inferencia(data, f"{target_col}_C1")
-            if res_c1 is None: return {"error": "Faltan modelos C1"}
+            if res_c1 is None:
+                return {"error": "Faltan modelos C1"}
             preds_c1, confs_c1 = res_c1
 
             final_res = []
