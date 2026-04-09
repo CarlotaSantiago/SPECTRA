@@ -1,6 +1,6 @@
 # Python / Backend
 __pycache__/
-venv/
+.venv/
 .env
 *.pyc
 
@@ -13,3 +13,7 @@ dist/          # La carpeta que crea Vite al compilar
 # Variables de entorno
 .env.local
 .env.development.local
+
+#QUitar data
+./backend/uploads/*
+./backend/models/*
