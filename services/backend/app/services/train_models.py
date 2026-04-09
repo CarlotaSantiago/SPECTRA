@@ -50,7 +50,8 @@ parametresRFC = {
 parametresSVM = {
     'C': loguniform(1e-3, 1e3),
     'kernel': ['linear', 'rbf', 'poly'],
-    'gamma': ['scale']
+    'gamma': ['scale'], 
+    'probability': [True]
 }
 
 parametresNB = {
