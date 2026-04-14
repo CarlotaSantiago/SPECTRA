@@ -1,6 +1,6 @@
 // src/features/upload/UploadPage.tsx
 import { useNavigate } from "react-router-dom";
-import { useUpload } from "./hooks/useupload";
+import { useUpload } from "./hooks/useUpload";
 import { Dropzone } from "./components/Dropzone";
 import { FileList } from "./components/FileList";
 

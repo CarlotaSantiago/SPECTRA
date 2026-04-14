@@ -1,11 +1,13 @@
+import io
 import json
 import os
 import asyncio
+from turtle import pd
 from pydantic import BaseModel
 from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from typing import List
-from app.services.processor import procesar_archivo
+from app.services.processor import limpiar_datos, procesar_archivo
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
 from app.services.predict_models import predecir_final
 
@@ -14,7 +16,7 @@ router = APIRouter()
 
 @router.post("/upload") # 2. Cambiamos 'app.post' por 'router.post'
 async def handle_upload(
-    files: List[UploadFile] = File(...), 
+    files: List[UploadFile] = File(...),
     indices_to_preprocess: str = Form(...) # Recibimos como str para evitar errores 422
 ):
     """
@@ -34,22 +36,37 @@ async def handle_upload(
         # Si no es un JSON válido, asumimos que no se preprocesará nada
         to_process_list = []
 
-    res = []
-    
+    lista_dataframes = []
+
     for index, file in enumerate(files):
-        debe_limpiar = index in to_process_list
-        # 3. Llamamos a la función correcta con 'await'
-        result = await procesar_archivo(file, debe_limpiar)
-        res.append({
-            "filename": file.filename,
-            "preprocessed": debe_limpiar,
-            "data": result
-        })
+        content = await file.read()
+        # Leer archivo actual
+        df_temp = pd.read_excel(io.BytesIO(content)) if file.filename.endswith(('.xlsx', '.xls')) else pd.read_csv(io.BytesIO(content))
+        
+        # Aplicar limpieza si toca (tus funciones de stopwords)
+        if index in to_process_list:
+            columnas_a_limpiar = ['datosclini', 'sospechadiag']
+            for col in columnas_a_limpiar:
+                if col in df_temp.columns:
+                    df_temp[f'{col}_limpio'] = limpiar_datos(df_temp[col])
+        
+        lista_dataframes.append(df_temp)
+
+    # --- UNIFICACIÓN (Paso clave para Etapa 0) ---
+    df_unificado = pd.concat(lista_dataframes, ignore_index=True)
+
+    n_total = len(df_unificado) # Número total de filas en el DataFrame unificado
+    columnas_finales = df_unificado.columns.tolist() # Lista de columnas finales
+
+    path_unificado = os.path.join("uploads", "dataset_unificado.xlsx")
+    df_unificado.to_excel(path_unificado, index=False)
 
     return {
         "status": "ok", 
-        "received": len(files),
-        "results": res
+        "n_total": n_total,
+        "columnas": columnas_finales,
+        "preview": df_unificado.head(10).to_dict(orient='records'), # Solo las primeras 10 filas para evitar sobrecarga
+        "path": path_unificado
     }
 
 
