@@ -43,7 +43,7 @@ async def procesar_archivo(upload_file, aplicar_limpieza: bool):
         for col in columnas_a_limpiar:
             if col in df.columns:
                 # IMPORTANTE: Llamamos a limpiar_datos (el nombre correcto)
-                df[col] = limpiar_datos(df[col])
+                df[f'{col}_limpio'] = limpiar_datos(df[col])
 
     # 3. Guardar el resultado
     output_filename = f"{upload_file.filename}"
