@@ -220,7 +220,7 @@ const PredictionPage = () => {
             </div>
 
             <div style={{ marginTop: '30px', textAlign: 'center' }}>
-                <button onClick={() => navigate('/')} style={btnBackStyle}>Volver</button>
+                <button onClick={() => navigate(-1)} style={btnBackStyle}>Volver</button>
                 <button onClick={handleRunPrediction} style={btnRunStyle}>Lanzar Predicciones</button>
                 <button onClick={handleRunTraining} style={btnRunStyle}>Lanzar Entrenamiento</button>
             

@@ -43,6 +43,10 @@ const DataConfigPage = () => {
   return (
     <div style={{ padding: "30px", margin: "0 auto", backgroundColor: "#31313133", minHeight: "100vh" }}>
       
+      <button onClick={() => navigate(-1)} style={{ position: "absolute", top: "20px", left: "20px", backgroundColor: "transparent", border: "none", color: "#648f8c", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
+      <ArrowRight size={16} style={{ transform: "rotate(180deg)" }} /> Volver
+    </button>
+    
       {/* HEADER */}
       <div style={cardStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -132,9 +136,8 @@ const DataConfigPage = () => {
                 </div>
               </div>
               <div style={{ display: "flex", gap: "3px", marginTop: "8px" }}>
-                <button onClick={() => handleRoleChange(col, 'feature')} style={miniBtn(roles[col] === 'feature', "#3b82f6")}>F</button>
-                <button onClick={() => handleRoleChange(col, 'target')} style={miniBtn(roles[col] === 'target', "#10b981")}>T</button>
-                <button onClick={() => handleRoleChange(col, 'none')} style={miniBtn(!roles[col] || roles[col] === 'none', "#648f8c")}>-</button>
+                <button onClick={() => handleRoleChange(col, 'feature')} style={miniBtn(roles[col] === 'feature', "#3b82f6")}>FEATURE</button>
+                <button onClick={() => handleRoleChange(col, 'target')} style={miniBtn(roles[col] === 'target', "#10b981")}>TARGET</button>
               </div>
             </div>
           ))}
@@ -190,7 +193,7 @@ const colSelectorCard = (role: string) => ({
 
 const miniBtn = (active: boolean, color: string) => ({
   flex: 1, padding: "4px", fontSize: "10px", borderRadius: "4px", border: "none",
-  backgroundColor: active ? color : "#648f8c", color: active ? "white" : "#c0c0c0",
+  backgroundColor: active ? color : "#648f8c", color: active ? "white" : "#d2d2d2",
   cursor: "pointer", fontWeight: "bold" as any
 });
 
