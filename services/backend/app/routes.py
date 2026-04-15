@@ -1,15 +1,15 @@
 import io
-import json
 import os
-import asyncio
-import pandas as pd
+import json
 import numpy as np
-from fastapi import APIRouter, File, UploadFile, Form
-from pydantic import BaseModel
+import pandas as pd
 from typing import List
+from pydantic import BaseModel
 from app.services.processor import limpiar_datos
-from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
+from fastapi import APIRouter, File, UploadFile, Form
 from app.services.predict_models import predecir_final
+from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
+
 
 # 1. Usamos el APIRouter()
 router = APIRouter()

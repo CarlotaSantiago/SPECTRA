@@ -10,7 +10,7 @@ const UploadPage = () => {
   const { files, addFiles, removeFile, togglePreprocess, upload } =
     useUpload((data) => {
       if (data.status === "ok") {
-        navigate("/prediction", { state: { data: data.results } });
+        navigate("/data-config", { state: { data: data } });
       }
     });
 

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Upload from './pages/Upload';
 import PredictionPage from './pages/PredictionPage';
 import ResultsPage from './pages/ResultsPage';
+import DataConfigPage from './pages/DataConfigPage';
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
 
       <Routes>
         <Route path="/" element={<Upload />} />
+        <Route path='/data-config' element={<DataConfigPage />} />
         <Route path='/prediction' element={<PredictionPage />} />
         <Route path='/results' element={<ResultsPage />} />
       </Routes>
