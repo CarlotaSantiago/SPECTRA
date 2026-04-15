@@ -2,12 +2,12 @@ import io
 import json
 import os
 import asyncio
-from turtle import pd
+import pandas as pd
+import numpy as np
+from fastapi import APIRouter, File, UploadFile, Form
 from pydantic import BaseModel
-from fastapi import APIRouter, File, UploadFile, Form, BackgroundTasks
-from fastapi.concurrency import run_in_threadpool
 from typing import List
-from app.services.processor import limpiar_datos, procesar_archivo
+from app.services.processor import limpiar_datos
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
 from app.services.predict_models import predecir_final
 
@@ -42,7 +42,7 @@ async def handle_upload(
         content = await file.read()
         # Leer archivo actual
         df_temp = pd.read_excel(io.BytesIO(content)) if file.filename.endswith(('.xlsx', '.xls')) else pd.read_csv(io.BytesIO(content))
-        
+
         # Aplicar limpieza si toca (tus funciones de stopwords)
         if index in to_process_list:
             columnas_a_limpiar = ['datosclini', 'sospechadiag']
@@ -61,11 +61,17 @@ async def handle_upload(
     path_unificado = os.path.join("uploads", "dataset_unificado.xlsx")
     df_unificado.to_excel(path_unificado, index=False)
 
+    # Limpiar valores problemáticos para JSON
+    df_unificado.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+    # Convertir NaN a None (compatible con JSON)
+    preview = df_unificado.head(10).replace({np.nan: None}).to_dict(orient='records')
+
     return {
         "status": "ok", 
         "n_total": n_total,
         "columnas": columnas_finales,
-        "preview": df_unificado.head(10).to_dict(orient='records'), # Solo las primeras 10 filas para evitar sobrecarga
+        "preview": preview,
         "path": path_unificado
     }
 

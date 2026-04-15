@@ -1,7 +1,5 @@
-import pandas as pd
 from spacy.lang.es.stop_words import STOP_WORDS
-import io
-import os
+
 
 # 1. Configuración de Stopwords
 descartar = {'no', 'sin', 'ni'}
