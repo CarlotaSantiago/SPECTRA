@@ -1,16 +1,23 @@
 from http.client import HTTPException
 from importlib.resources import path
 import io
+import logging
 import os
 import json
 import numpy as np
 import pandas as pd
 from typing import List
 from pydantic import BaseModel
+from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
+from sklearn.preprocessing import LabelEncoder
 from app.services.processor import limpiar_datos
 from fastapi import APIRouter, File, UploadFile, Form
 from app.services.predict_models import predecir_final
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
+from typing import Dict, Any
+from pandas.api.types import is_object_dtype, is_string_dtype, is_float_dtype
+
+logger = logging.getLogger(__name__)
 
 
 # 1. Usamos el APIRouter()
@@ -77,6 +84,82 @@ async def handle_upload(
         "path": path_unificado
     }
 
+def classify_target(series: pd.Series, n_rows: int) -> str:
+    """
+    Classify a target variable as 'classification' or 'regression' based on its unique values and ratio.
+    
+    Args:
+        series: Pandas Series representing the target variable.
+        n_rows: Total number of rows in the dataset."""
+    nunique = series.nunique()
+    ratio = nunique / n_rows
+
+    if nunique == 2 or ratio < 0.05:
+        return "classification"
+    return "regression"
+
+def classify_feature(series: pd.Series, n_rows: int) -> Dict[str, Any]:
+    nunique = series.nunique()
+    ratio = nunique / n_rows
+
+    result = {
+        "nunique": nunique,
+        "r_ratio": round(ratio, 4),
+    }
+
+    if nunique == 2:
+        result.update({"technical_level": 1, "subclass": "binary"})
+    elif ratio < 0.05:
+        result.update({"technical_level": 2, "subclass": "categorical"})
+    elif ratio < 0.8:
+        subclass = "continuous" if is_float_dtype(series) else "discrete"
+        result.update({"technical_level": 3, "subclass": subclass})
+    else:
+        result.update({"technical_level": 4, "subclass": "high cardinality"})
+    
+    return result
+
+def encode_series(series: pd.Series) -> pd.Series:
+    if is_object_dtype(series) or is_string_dtype(series):
+        return pd.Series(LabelEncoder().fit_transform(series.astype(str)), index=series.index)
+    return series
+
+def compute_information_gain(
+    df: pd.DataFrame,
+    feature: str,
+    targets: list,
+    target_meta: Dict[str, str],
+    is_discrete: bool,
+) -> Dict[str, float]:
+
+    scores = {}
+
+    for t in targets:
+        temp_df = df[[feature, t]].dropna()
+
+        if temp_df.empty:
+            scores[t] = 0.0
+            continue
+
+        X = temp_df[[feature]].copy()
+        y = temp_df[t].copy()
+
+        try:
+            X[feature] = encode_series(X[feature])
+            y = encode_series(y)
+
+            if target_meta[t] == "classification":
+                score = mutual_info_classif(X, y, discrete_features=is_discrete)[0]
+            else:
+                score = mutual_info_regression(X, y, discrete_features=is_discrete)[0]
+
+            scores[t] = round(float(score), 4)
+
+        except Exception as e:
+            logger.warning(f"IG error: {feature} vs {t} -> {e}")
+            scores[t] = 0.0
+
+    return scores
 
 class Dossier(BaseModel):
     """Model representing a dossier with total count, 
@@ -87,83 +170,69 @@ class Dossier(BaseModel):
     targets: List[str]
     mandatory: List[str]
 
-@router.post("/process-state-1") # 2. Cambiamos 'app.post' por 'router.post'
-def process_state_1(
-    data: Dossier
-):
-    """
-    Process file for Etapa 1 by applying cleaning functions to specified columns.
-    
-    Args:
-        file: Uploaded file to process.
-        indices_to_preprocess: JSON string containing indices of files to preprocess.
-    Returns:
-        Status and results of the processing.
-    """
+@router.post("/process-state-1")
+def process_state_1(data: Dossier):
     try:
-        print(f"""Recibiendo datos para process_state_1:
-              n_rows={data.n_rows}, 
-              path={data.path}, 
-              features={data.features}, 
-              targets={data.targets}, 
-              mandatory={data.mandatory}""")
-        n_rows = data.n_rows
-        features_list = data.features
-        # targets_list = data.targets
-        mandatory_list = data.mandatory
-        print(f"""Listas parseadas:
-              features={features_list}, 
-              targets={targets_list}, 
-              mandatory={mandatory_list}""")
-
+        # 1. Carga de datos (Soporte para Excel y CSV con manejo de encoding)
+        
         df = pd.read_excel(data.path)
+        if df.empty:
+            raise ValueError("Dataset is empty")
+        
+        if not data.targets:
+            raise ValueError("No targets provided")
+        
+        n_rows = data.n_rows
+
+        target_meta = {
+            target: classify_target(df[target], n_rows)
+            for target in data.targets
+            if target in df.columns
+        }
 
         analysis_results = {}
 
-        for col in features_list:
-            nunique = df[col].nunique()
-            r_ratio = nunique / n_rows
+        for col in data.features:
+            if col not in df.columns:
+                logger.warning(f"Column not found: {col}")
+                continue
 
-            col_data = {
-                "nunique": nunique,
-                "r_ratio": round(r_ratio, 4),
-                "user_mandatory": col in mandatory_list,
-                "unique_pool": df[col].unique().tolist()[:20]
-            }
+            series = df[col]
 
-            # Lógica de Clasificación por Niveles
-            if nunique == 2:
-                col_data["technical_level"] = 1
-                col_data["subclass"] = "Binary"
+            col_data = classify_feature(series, n_rows)
 
-            elif r_ratio < 0.05:
-                col_data["technical_level"] = 2
-                # Aquí marcamos que requiere intervención del LLM
-                col_data["subclass"] = "PENDING_LLM"
+            col_data.update({
+                "user_mandatory": col in data.mandatory,
+                "unique_pool": series.dropna().astype(str).unique()[:20].tolist()
+            })
 
-            elif 0.05 <= r_ratio < 0.80:
-                col_data["technical_level"] = 3
-                # Clasificación según el tipo de dato de pandas
-                if pd.api.types.is_float_dtype(df[col]):
-                    col_data["subclass"] = "Continua"
-                else:
-                    col_data["subclass"] = "Discreta"
+            is_discrete = col_data["technical_level"] in [1, 2]
 
-            else:
-                col_data["technical_level"] = 4
-                col_data["subclass"] = "Alta Cardinalidad"
+            col_data["information_gain"] = compute_information_gain(
+                df,
+                col,
+                data.targets,
+                target_meta,
+                is_discrete
+            )
 
             analysis_results[col] = col_data
 
         return {
             "status": "ok",
-            "analysis": analysis_results,
-            "targets": targets_list
+            "metadata": {
+                "n_rows": n_rows, 
+                "target_types": target_meta
+            },
+            "analysis": analysis_results
         }
 
     except Exception as e:
-        print(f"Error en process_state_1: {e}")
-        return {"status": "error", "message": str(e)}
+        logger.error(f"process_state_1 failed: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 
 
