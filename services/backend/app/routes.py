@@ -1,3 +1,4 @@
+from http.client import HTTPException
 import io
 import os
 import json
@@ -74,6 +75,78 @@ async def handle_upload(
         "preview": preview,
         "path": path_unificado
     }
+
+
+@router.post("/api/process-state-1") # 2. Cambiamos 'app.post' por 'router.post'
+def process_state_1(
+    n_rows: int = Form(...),
+    path: str = Form(...),
+    features: str = Form(...),
+    targets: str = Form(...),
+    mandatory: str = Form(...)
+):
+    """
+    Process file for Etapa 1 by applying cleaning functions to specified columns.
+    
+    Args:
+        file: Uploaded file to process.
+        indices_to_preprocess: JSON string containing indices of files to preprocess.
+    Returns:
+        Status and results of the processing.
+    """
+    try:
+        features_list = json.loads(features)
+        targets_list = json.loads(targets)
+        mandatory_list = json.loads(mandatory)
+
+        df = pd.read_csv(path)
+
+        analysis_results = {}
+
+        for col in features_list:
+            nunique = df[col].nunique()
+            r_ratio = nunique / n_rows
+
+            col_data = {
+                "nunique": nunique,
+                "r_ratio": round(r_ratio, 4),
+                "user_mandatory": col in mandatory_list,
+                "unique_pool": df[col].unique().tolist()[:20] # Limitamos para no saturar si hay muchas
+            }
+
+            # Lógica de Clasificación por Niveles
+            if nunique == 2:
+                col_data["technical_level"] = 1
+                col_data["subclass"] = "Binary"
+            
+            elif r_ratio < 0.05:
+                col_data["technical_level"] = 2
+                # Aquí marcamos que requiere intervención del LLM
+                col_data["subclass"] = "PENDING_LLM" 
+            
+            elif 0.05 <= r_ratio < 0.80:
+                col_data["technical_level"] = 3
+                # Clasificación según el tipo de dato de pandas
+                if pd.api.types.is_float_dtype(df[col]):
+                    col_data["subclass"] = "Continua"
+                else:
+                    col_data["subclass"] = "Discreta"
+            
+            else:
+                col_data["technical_level"] = 4
+                col_data["subclass"] = "Alta Cardinalidad"
+            
+            analysis_results[col] = col_data
+
+        return {
+            "status": "ok",
+            "analysis": analysis_results,
+            "targets": targets_list
+        }
+    except Exception as e:
+        print(f"Error en process_etapa_1: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 class PredictionBlock(BaseModel):

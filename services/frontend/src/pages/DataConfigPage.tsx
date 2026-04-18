@@ -46,6 +46,12 @@ const DataConfigPage = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
 const handleNextStep = async () => {
+  const selectedTargets = Object.keys(roles).filter(k => roles[k] === 'target');
+  
+  if (selectedTargets.length === 0) {
+    alert("Debes seleccionar al menos una columna como TARGET para calcular la relevancia.");
+    return;
+  }
   setIsProcessing(true); // Bloqueamos la UI o mostramos loader
   
   const dossier = {
@@ -58,7 +64,7 @@ const handleNextStep = async () => {
 
   try {
     // Esta llamada dispara el script de Python (Etapa 1)
-    const response = await axios.post("/api/process-etapa-1", dossier);
+    const response = await axios.post("/api/process-state-1", dossier);
     
     // El backend te devolverá el TOON (los resultados de los cálculos y la muestra estratificada)
     const toonData = response.data; 
