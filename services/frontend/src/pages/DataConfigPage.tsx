@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState, useMemo } from "react";
-import { ShieldCheck, Target, Database, ArrowRight, Table, Info, Eye, EyeOff, ListFilter, Settings2 } from "lucide-react";
+import { useState } from "react";
+import { ShieldCheck, Database, ArrowRight, Settings2, Check } from "lucide-react";
 
 const DataConfigPage = () => {
   const location = useLocation();
@@ -8,25 +8,36 @@ const DataConfigPage = () => {
   const data = location.state?.data;
 
   // 1. Configuración de columnas visibles
-  const columnasIniciales = ["idbuzon", "descrip", "edad", "servpeti", "numpeti", "desprest", "datosclini", "sospechadiag"];
-  
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(columnasIniciales);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    data?.columnas?.slice(0, 8) || []
+  );
   const [showColumnPicker, setShowColumnPicker] = useState(false);
-  
+
   // 2. Estados de Roles y Blindaje
   const [roles, setRoles] = useState<Record<string, 'feature' | 'target' | 'none'>>({});
   const [blindadas, setBlindadas] = useState<Record<string, boolean>>({});
 
-  if (!data) return <div style={{ padding: "50px", textAlign: "center" }}>No hay datos.</div>;
+  if (!data) return <div style={{ padding: "50px", textAlign: "center", color: "white" }}>No hay datos.</div>;
+
+  // Lógica de rotación de roles (Clic en cabecera)
+  const cycleRole = (col: string) => {
+    setRoles(prev => {
+      const current = prev[col] || 'none';
+      if (current === 'none') return { ...prev, [col]: 'feature' };
+      if (current === 'feature') return { ...prev, [col]: 'target' };
+      return { ...prev, [col]: 'none' };
+    });
+  };
 
   const toggleColumnVisibility = (col: string) => {
-    setVisibleColumns(prev => 
+    setVisibleColumns(prev =>
       prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
     );
   };
 
-  const handleRoleChange = (col: string, role: 'feature' | 'target' | 'none') => {
-    setRoles(prev => ({ ...prev, [col]: role }));
+  const toggleBlindar = (e: React.MouseEvent, col: string) => {
+    e.stopPropagation(); // Evita que el clic en el escudo active el cycleRole
+    setBlindadas(p => ({ ...p, [col]: !p[col] }));
   };
 
   const handleNextStep = () => {
@@ -40,190 +51,234 @@ const DataConfigPage = () => {
     navigate("/prediction", { state: { dossier } });
   };
 
-  return (
-    <div style={{ padding: "30px", margin: "0 auto", backgroundColor: "#31313133", minHeight: "100vh" }}>
-      
-      <button onClick={() => navigate(-1)} style={{ position: "absolute", top: "20px", left: "20px", backgroundColor: "transparent", border: "none", color: "#648f8c", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
-      <ArrowRight size={16} style={{ transform: "rotate(180deg)" }} /> Volver
-    </button>
-    
-      {/* HEADER */}
-      <div style={cardStyle}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h2 style={{ color: "#4a6b68", margin: 0, display: "flex", alignItems: "center", gap: "10px" }}>
-            <Database size={28} /> Etapa 0: Configuración y Selección
-          </h2>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button 
-              onClick={() => setShowColumnPicker(!showColumnPicker)} 
-              style={visibilityBtnStyle(showColumnPicker)}
-            >
-              <Settings2 size={18} /> Ver/Ocultar Columnas
-            </button>
-            <div style={badgeStyle}>N = {data.n_total}</div>
-          </div>
-        </div>
+  // Estilo dinámico para las cabeceras interactivas
+  const getHeaderStyle = (col: string): React.CSSProperties => {
+    const role = roles[col] || 'none';
+    let border = "#444";
+    let bg = "#222";
 
-        {/* SELECTOR DE COLUMNAS (DROPDOWN) */}
-        {showColumnPicker && (
-          <div style={columnPickerDropdown}>
-            <p style={{ fontSize: "12px", fontWeight: "bold", marginBottom: "10px" }}>Selecciona columnas para la tabla:</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "5px" }}>
-              {data.columnas.map((col: string) => (
-                <label key={col} style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer" }}>
-                  <input 
-                    type="checkbox" 
-                    checked={visibleColumns.includes(col)} 
-                    onChange={() => toggleColumnVisibility(col)} 
-                  />
-                  {col}
-                </label>
-              ))}
+    if (role === 'feature') { border = "#3b82f6"; bg = "#3b82f615"; }
+    if (role === 'target') { border = "#10b981"; bg = "#10b98115"; }
+
+    return {
+      padding: "12px 10px",
+      backgroundColor: bg,
+      borderBottom: `3px solid ${border}`,
+      cursor: "pointer",
+      transition: "all 0.2s ease",
+      textAlign: "left",
+      minWidth: "150px",
+      position: "sticky",
+      top: 0,
+      zIndex: 10
+    };
+  };
+
+  return (
+    <div style={containerStyle}>
+      {/* BOTÓN VOLVER */}
+      <button
+        onClick={() => navigate(-1)}
+        style={{ background: "none", border: "none", color: "#648f8c", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer", marginBottom: "15px", width: "fit-content" }}
+      >
+        <ArrowRight size={16} style={{ transform: "rotate(180deg)" }} /> Volver
+      </button>
+
+      {/* HEADER SUPERIOR */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <h2 style={{ color: "#648f8c", margin: 0, display: "flex", alignItems: "center", gap: "10px", fontSize: "1.2rem" }}>
+          <Database size={20} /> Configuración de Roles
+        </h2>
+        
+        <div style={{ display: "flex", gap: "12px", alignItems: "center", position: "relative" }}>
+          <button
+            onClick={() => setShowColumnPicker(!showColumnPicker)}
+            style={visibilityBtnStyle(showColumnPicker)}
+          >
+            <Settings2 size={18} /> Ver/Ocultar Columnas
+          </button>
+          
+          <div style={badgeStyle}>N = {data.n_total}</div>
+
+          {/* DROPDOWN DE COLUMNAS */}
+          {showColumnPicker && (
+            <div style={columnPickerDropdown}>
+              <div style={{ padding: "8px", fontSize: "10px", color: "#666", fontWeight: "bold", borderBottom: "1px solid #333" }}>MOSTRAR COLUMNAS</div>
+              <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+                {data.columnas.map((col: string) => (
+                  <div 
+                    key={col} 
+                    onClick={() => toggleColumnVisibility(col)} 
+                    style={dropdownItemStyle(visibleColumns.includes(col))}
+                  >
+                    {visibleColumns.includes(col) ? <Check size={12} /> : <div style={{ width: 12 }} />}
+                    {col}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: "20px", marginTop: "20px" }}>
-        
-        {/* TABLA DE PREVISUALIZACIÓN FILTRADA */}
-        <div style={cardStyle}>
-          <h3 style={{ fontSize: "16px", marginBottom: "15px", color: "#536765", display: "flex", alignItems: "center", gap: "8px" }}>
-            <Table size={20} /> Vista Previa ({visibleColumns.length} columnas visibles)
-          </h3>
-          <div style={{ overflowX: "auto", borderRadius: "10px", border: "1px solid #648f8c" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
-              <thead style={{ backgroundColor: "#31313133" }}>
-                <tr>
-                  {data.columnas.filter((c: string) => visibleColumns.includes(c)).map((col: string) => (
-                    <th key={col} style={previewThStyle}>
-                      <span style={{ color: roles[col] === 'target' ? '#50a388' : roles[col] === 'feature' ? '#5d83bf' : '#b4b4b4' }}>
+      {/* CONTENEDOR DE LA TABLA (Ocupa el resto de la pantalla) */}
+      <div style={tableWrapper}>
+        <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "separate", borderSpacing: 0 }}>
+          <thead>
+            <tr>
+              {data.columnas.filter((c: string) => visibleColumns.includes(c)).map((col: string) => (
+                <th key={col} style={getHeaderStyle(col)} onClick={() => cycleRole(col)}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", overflow: "hidden" }}>
+                    <span style={{ fontSize: "8px", color: roles[col] ? "inherit" : "#666", textTransform: "uppercase", fontWeight: "bold" }}>
+                      {roles[col] || 'OFF'}
+                    </span>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4px" }}>
+                      <span style={colNameStyle}>
                         {col}
                       </span>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {data.preview.map((row: any, i: number) => (
-                  <tr key={i} style={{ borderBottom: "1px solid #648f8c" }}>
-                    {data.columnas.filter((c: string) => visibleColumns.includes(c)).map((col: string) => (
-                      <td key={col} style={previewTdStyle}>{row[col]?.toString().substring(0, 40)}</td>
-                    ))}
-                  </tr>
+                      {roles[col] === 'feature' && (
+                        <ShieldCheck 
+                          size={14} 
+                          onClick={(e) => toggleBlindar(e, col)}
+                          style={{ color: blindadas[col] ? "#ef4444" : "#444", flexShrink: 0 }} 
+                        />
+                      )}
+                    </div>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.preview.map((row: any, i: number) => (
+              <tr key={i}>
+                {data.columnas.filter((c: string) => visibleColumns.includes(c)).map((col: string) => (
+                  <td key={col} style={previewTdStyle}>
+                    {row[col]?.toString().substring(0, 80)}
+                  </td>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* PANEL DE ROLES (Muestra todas para poder configurar incluso las ocultas) */}
-        <div style={{ ...cardStyle, maxHeight: "75vh", overflowY: "auto" }}>
-          <h3 style={{ fontSize: "16px", color: "#536765", marginBottom: "15px" }}>Configurar Roles</h3>
-          {data.columnas.map((col: string) => (
-            <div key={col} style={colSelectorCard(roles[col])}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontWeight: "bold", fontSize: "13px" }}>{col}</span>
-                <div style={{ display: "flex", gap: "5px" }}>
-                  {roles[col] === 'feature' && (
-                    <ShieldCheck 
-                      size={16} 
-                      onClick={() => setBlindadas(p => ({...p, [col]: !p[col]}))}
-                      style={{ cursor: "pointer", color: blindadas[col] ? "#ef4444" : "#ccc" }} 
-                    />
-                  )}
-                  {visibleColumns.includes(col) ? <Eye size={16} color="#648f8c"/> : <EyeOff size={16} color="#ccc"/>}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: "3px", marginTop: "8px" }}>
-                <button onClick={() => handleRoleChange(col, 'feature')} style={miniBtn(roles[col] === 'feature', "#3b82f6")}>FEATURE</button>
-                <button onClick={() => handleRoleChange(col, 'target')} style={miniBtn(roles[col] === 'target', "#10b981")}>TARGET</button>
-              </div>
-            </div>
-          ))}
-        </div>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
+      {/* BOTÓN DE ACCIÓN FINAL */}
       <button onClick={handleNextStep} style={mainBtnStyle}>
-        Confirmar Selección y Avanzar <ArrowRight size={22} />
+        Confirmar Selección y Avanzar <ArrowRight size={20} />
       </button>
     </div>
   );
 };
 
 // --- ESTILOS ---
-const visibilityBtnStyle = (active: boolean) => ({
+
+const containerStyle: React.CSSProperties = {
   display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  padding: "8px 16px",
-  borderRadius: "8px",
-  border: "1px solid #648f8c",
-  backgroundColor: active ? "#648f8c" : "transparent",
-  color: active ? "white" : "#648f8c",
-  cursor: "pointer",
-  fontSize: "13px",
-  fontWeight: "bold" as any
-});
-
-const columnPickerDropdown: React.CSSProperties = {
-  marginTop: "15px",
-  padding: "15px",
-  backgroundColor: "#31313133",
-  border: "1px solid #31313133",
-  borderRadius: "10px",
-  boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
+  flexDirection: "column",
+  height: "100vh",
+  padding: "20px",
+  backgroundColor: "#121212",
+  color: "white",
+  boxSizing: "border-box",
+  overflow: "hidden"
 };
 
-const cardStyle: React.CSSProperties = {
-  background: "#78787833", padding: "20px", borderRadius: "15px",
-  boxShadow: "0 4px 20px rgba(0,0,0,0.05)", border: "1px solid #31313133"
+const tableWrapper: React.CSSProperties = {
+  flexGrow: 1,
+  overflowY: "auto",
+  overflowX: "hidden", 
+  borderRadius: "12px",
+  border: "1px solid #333",
+  background: "#1a1a1a",
+  width: "100%"
 };
 
-const badgeStyle: React.CSSProperties = {
-  backgroundColor: "#648f8c", padding: "8px 15px", borderRadius: "20px",
-  color: "white", fontSize: "14px", border: "1px solid #648f8c33", fontWeight: "bold"
-};
-
-const colSelectorCard = (role: string) => ({
-  backgroundColor: role === 'target' ? "#31313133" : role === 'feature' ? "#31313133" : "#31313133",
-  padding: "10px", borderRadius: "8px", marginBottom: "8px",
-  border: `1px solid ${role === 'target' ? "#a4ffc4" : role === 'feature' ? "#92c1fb" : "#c3c3c3"}`
-});
-
-const miniBtn = (active: boolean, color: string) => ({
-  flex: 1, padding: "4px", fontSize: "10px", borderRadius: "4px", border: "none",
-  backgroundColor: active ? color : "#648f8c", color: active ? "white" : "#d2d2d2",
-  cursor: "pointer", fontWeight: "bold" as any
-});
-
-const mainBtnStyle: React.CSSProperties = {
-  marginTop: "20px", width: "100%", padding: "18px", borderRadius: "15px", border: "none",
-  backgroundColor: "#648f8c", color: "white", fontSize: "18px", fontWeight: "bold",
-  cursor: "pointer", display: "flex", justifyContent: "center", alignItems: "center", gap: "12px"
-};
-
-const previewThStyle: React.CSSProperties = {
-  padding: "8px",
-  borderRight: "1px solid #648f8c",
-  textAlign: "left",
-  fontSize: "11px",
-  backgroundColor: "#648f8c33",
-  // Quitamos whiteSpace: "nowrap" para que el título pueda romper línea si es necesario
-  width: "auto", 
-  minWidth: "100px"
+const colNameStyle: React.CSSProperties = {
+  color: "white", 
+  fontSize: "11px", 
+  whiteSpace: "nowrap", 
+  overflow: "hidden", 
+  textOverflow: "ellipsis" 
 };
 
 const previewTdStyle: React.CSSProperties = {
-  padding: "6px 8px",
-  borderRight: "1px solid #648f8c",
-  color: "#d4d4d4",
-  // CAMBIO CLAVE:
-  wordBreak: "break-word", // Rompe palabras largas
-  whiteSpace: "normal",    // Permite saltos de línea
+  padding: "10px",
+  borderBottom: "1px solid #252525",
+  borderRight: "1px solid #252525",
   fontSize: "11px",
-  lineHeight: "1.2",
-  maxWidth: "200px"        // Limita el ancho máximo de cada celda
+  color: "#888",
+  wordBreak: "break-word",
+  whiteSpace: "normal" as any, 
+  verticalAlign: "top",
+  lineHeight: "1.4"
+};
+
+const mainBtnStyle: React.CSSProperties = {
+  marginTop: "15px",
+  padding: "14px",
+  borderRadius: "10px",
+  border: "none",
+  backgroundColor: "#648f8c",
+  color: "white",
+  fontSize: "15px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  gap: "10px"
+};
+
+const visibilityBtnStyle = (active: boolean): React.CSSProperties => ({
+  backgroundColor: active ? "#648f8c" : "transparent",
+  color: active ? "white" : "#648f8c",
+  border: "1px solid #648f8c",
+  padding: "8px 16px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  fontSize: "13px",
+  fontWeight: "bold",
+  transition: "all 0.2s"
+});
+
+const columnPickerDropdown: React.CSSProperties = {
+  position: "absolute",
+  top: "45px",
+  right: 0,
+  backgroundColor: "#1a1a1a",
+  border: "1px solid #333",
+  borderRadius: "10px",
+  boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+  zIndex: 100,
+  minWidth: "200px",
+  overflow: "hidden"
+};
+
+const dropdownItemStyle = (selected: boolean): React.CSSProperties => ({
+  padding: "10px 12px",
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  cursor: "pointer",
+  fontSize: "12px",
+  color: selected ? "white" : "#666",
+  backgroundColor: selected ? "#648f8c15" : "transparent",
+  borderBottom: "1px solid #252525",
+  transition: "0.2s"
+});
+
+const badgeStyle: React.CSSProperties = {
+  backgroundColor: "#648f8c33",
+  padding: "6px 15px",
+  borderRadius: "20px",
+  color: "#648f8c",
+  fontSize: "13px",
+  border: "1px solid #648f8c33",
+  fontWeight: "bold"
 };
 
 export default DataConfigPage;
