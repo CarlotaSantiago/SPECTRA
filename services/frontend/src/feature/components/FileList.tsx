@@ -1,5 +1,5 @@
 import { FileItem } from "./FileItem";
-import type { FileWithSettings } from "../types";
+import type { FileWithSettings } from "../../types";
 
 export const FileList = ({
   files,

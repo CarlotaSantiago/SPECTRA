@@ -1,7 +1,7 @@
 // src/features/upload/hooks/useUpload.ts
 import { useState } from "react";
 import { uploadFiles } from "../../adapter/uploadAdapter";
-import type { FileWithSettings } from "../types";
+import type { FileWithSettings } from "../../types";
 
 export const useUpload = (onSuccess: (data: any) => void) => {
   const [files, setFiles] = useState<FileWithSettings[]>([]);

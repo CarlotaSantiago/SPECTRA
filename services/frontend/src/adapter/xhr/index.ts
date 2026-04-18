@@ -5,4 +5,7 @@ const instance = axios.create({
   baseURL: "http://localhost:8000",
 });
 
-export const post = (url: string, data: any) => instance.post(url, data);
+export const post = async <T = any>(url: string, data: any): Promise<T> => {
+  const res = await instance.post(url, data);
+  return res.data;
+};

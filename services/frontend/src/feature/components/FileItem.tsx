@@ -1,5 +1,5 @@
 import { FileText, ShieldCheck, X } from "lucide-react";
-import type { FileWithSettings } from "../types";
+import type { FileWithSettings } from "../../types";
 
 export const FileItem = ({
   item,

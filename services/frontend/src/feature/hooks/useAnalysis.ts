@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { processState1 } from "../../adapter/analysisAdapter";
-import type { DossierPayload } from "../types";
+import type { DossierPayload } from "../../types";
 
 export const useAnalysis = (onSuccess?: (data: any) => void) => {
   const [loading, setLoading] = useState(false);

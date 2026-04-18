@@ -1,8 +1,9 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { ShieldCheck, Database, ArrowRight, Settings2, Check } from "lucide-react";
 import { useAnalysis } from "../feature/hooks/useAnalysis";
 import { useDatasetStore } from "../store/useDatasetStore";
+import { LoadingOverlay } from "../feature/components/LoadingOverlay";
 
 const DataConfigPage = () => {
   const navigate = useNavigate();
@@ -98,8 +99,13 @@ try {
   };
 
   return (
-    <div style={containerStyle}>
+    <div style={{...containerStyle, 
+      pointerEvents: loading ? "none" : "auto",
+      opacity: loading ? 0.6 : 1}}>
       {/* BOTÓN VOLVER */}
+      {loading && (
+      <LoadingOverlay message="Analizando dataset..." />
+    )}
       <button
         onClick={() => navigate(-1)}
         style={{ background: "none", border: "none", color: "#648f8c", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer", marginBottom: "15px", width: "fit-content" }}

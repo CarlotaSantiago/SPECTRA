@@ -1,6 +1,6 @@
 // src/adapters/uploadAdapter.ts
 import { post } from "./xhr";
-import type { FileWithSettings } from "../feature/types";
+import type { FileWithSettings } from "../types";
 
 export const uploadFiles = async (files: FileWithSettings[]) => {
   const formData = new FormData();

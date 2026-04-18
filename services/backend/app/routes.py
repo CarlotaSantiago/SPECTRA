@@ -1,4 +1,3 @@
-from http.client import HTTPException
 from importlib.resources import path
 import io
 import logging
@@ -11,7 +10,7 @@ from pydantic import BaseModel
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.preprocessing import LabelEncoder
 from app.services.processor import limpiar_datos
-from fastapi import APIRouter, File, UploadFile, Form
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from app.services.predict_models import predecir_final
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
 from typing import Dict, Any
@@ -170,7 +169,7 @@ class Dossier(BaseModel):
     targets: List[str]
     mandatory: List[str]
 
-@router.post("/process-state-1")
+@router.post("/process-state1")
 def process_state_1(data: Dossier):
     try:
         # 1. Carga de datos (Soporte para Excel y CSV con manejo de encoding)
