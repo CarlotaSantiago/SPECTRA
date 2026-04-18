@@ -1,6 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { ShieldCheck, Database, ArrowRight, Settings2, Check } from "lucide-react";
+import axios from "axios";
+import { LoadingOverlay } from "../feature/upload/components/LoadingOverlay"; // Importamos el nuevo componente
+
 
 const DataConfigPage = () => {
   const location = useLocation();
@@ -40,16 +43,35 @@ const DataConfigPage = () => {
     setBlindadas(p => ({ ...p, [col]: !p[col] }));
   };
 
-  const handleNextStep = () => {
-    const dossier = {
-      n_total: data.n_total,
-      path: data.path_final,
-      features: Object.keys(roles).filter(k => roles[k] === 'feature'),
-      targets: Object.keys(roles).filter(k => roles[k] === 'target'),
-      mandatory: Object.keys(blindadas).filter(k => blindadas[k] && roles[k] === 'feature')
-    };
-    navigate("/prediction", { state: { dossier } });
+  const [isProcessing, setIsProcessing] = useState(false);
+
+const handleNextStep = async () => {
+  setIsProcessing(true); // Bloqueamos la UI o mostramos loader
+  
+  const dossier = {
+    n_total: data.n_total,
+    path: data.path_final, // El backend usa esto para leer el CSV completo
+    features: Object.keys(roles).filter(k => roles[k] === 'feature'),
+    targets: Object.keys(roles).filter(k => roles[k] === 'target'),
+    mandatory: Object.keys(blindadas).filter(k => blindadas[k] && roles[k] === 'feature')
   };
+
+  try {
+    // Esta llamada dispara el script de Python (Etapa 1)
+    const response = await axios.post("/api/process-etapa-1", dossier);
+    
+    // El backend te devolverá el TOON (los resultados de los cálculos y la muestra estratificada)
+    const toonData = response.data; 
+
+    // Navegamos a la siguiente pantalla pasando los resultados del análisis matemático
+    navigate("/semantic-analysis", { state: { toonData } });
+  } catch (err) {
+    console.error("Error en Etapa 1:", err);
+    alert("Error al procesar el análisis matemático.");
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   // Estilo dinámico para las cabeceras interactivas
   const getHeaderStyle = (col: string): React.CSSProperties => {
@@ -57,8 +79,8 @@ const DataConfigPage = () => {
     let border = "#444";
     let bg = "#222";
 
-    if (role === 'feature') { border = "#3b82f6"; bg = "#3b82f615"; }
-    if (role === 'target') { border = "#10b981"; bg = "#10b98115"; }
+    if (role === 'feature') { border = "#3b82f6"; bg = "#2c2c2c"; }
+    if (role === 'target') { border = "#10b981"; bg = "#2c2c2c"; }
 
     return {
       padding: "12px 10px",
@@ -76,6 +98,7 @@ const DataConfigPage = () => {
 
   return (
     <div style={containerStyle}>
+      {isProcessing && <LoadingOverlay />}
       {/* BOTÓN VOLVER */}
       <button
         onClick={() => navigate(-1)}
@@ -140,7 +163,7 @@ const DataConfigPage = () => {
                         <ShieldCheck 
                           size={14} 
                           onClick={(e) => toggleBlindar(e, col)}
-                          style={{ color: blindadas[col] ? "#ef4444" : "#444", flexShrink: 0 }} 
+                          style={{ color: blindadas[col] ? "#ef4444" : "#6c6c6c", flexShrink: 0 }} 
                         />
                       )}
                     </div>
@@ -166,6 +189,7 @@ const DataConfigPage = () => {
       {/* BOTÓN DE ACCIÓN FINAL */}
       <button onClick={handleNextStep} style={mainBtnStyle}>
         Confirmar Selección y Avanzar <ArrowRight size={20} />
+        {isProcessing ? "Procesando..." : "Lanzar Documentos"}
       </button>
     </div>
   );
