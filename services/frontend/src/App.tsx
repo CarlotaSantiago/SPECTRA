@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Upload from './pages/Upload';
-import PredictionPage from './pages/PredictionPage';
-import ResultsPage from './pages/ResultsPage';
-import DataConfigPage from './pages/DataConfigPage';
+import Upload from './pages/UploadPage';
+import DataConfig from './pages/DataConfigPage';
+import Prediction from './pages/PredictionPage';
+import Results from './pages/ResultsPage';
 
 function App() {
   return (
@@ -13,9 +13,9 @@ function App() {
 
       <Routes>
         <Route path="/" element={<Upload />} />
-        <Route path='/data-config' element={<DataConfigPage />} />
-        <Route path='/prediction' element={<PredictionPage />} />
-        <Route path='/results' element={<ResultsPage />} />
+        <Route path='/data-config' element={<DataConfig />} />
+        <Route path='/prediction' element={<Prediction />} />
+        <Route path='/results' element={<Results />} />
       </Routes>
     </Router>
   );

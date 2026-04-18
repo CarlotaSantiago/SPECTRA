@@ -1,18 +1,23 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { useUpload } from "./hooks/useUpload";
-import { Dropzone } from "./components/Dropzone";
-import { FileList } from "./components/FileList";
-import { LoadingOverlay } from "./components/LoadingOverlay"; // Importamos el nuevo componente
+import { useUpload } from "../feature/hooks/useUpload";
+import { Dropzone } from "../feature/components/Dropzone";
+import { FileList } from "../feature/components/FileList";
+import { LoadingOverlay } from "../feature/components/LoadingOverlay"; // Importamos el nuevo componente
+import { useDatasetStore } from "../store/useDatasetStore";
 
 const UploadPage = () => {
   const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
 
+  
+  const setData = useDatasetStore((s) => s.setData)
+
   const { files, addFiles, removeFile, togglePreprocess, upload } =
     useUpload(async (data) => {
       if (data.status === "ok") {
-        navigate("/data-config", { state: { data: data } });
+        setData(data);
+        navigate("/data-config");
       }
       setIsUploading(false);
     });

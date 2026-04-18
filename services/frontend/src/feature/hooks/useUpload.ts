@@ -1,6 +1,6 @@
 // src/features/upload/hooks/useUpload.ts
 import { useState } from "react";
-import { uploadFiles } from "../../../adapter/uploadAdapter";
+import { uploadFiles } from "../../adapter/uploadAdapter";
 import type { FileWithSettings } from "../types";
 
 export const useUpload = (onSuccess: (data: any) => void) => {

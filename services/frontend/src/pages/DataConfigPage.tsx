@@ -1,14 +1,16 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { ShieldCheck, Database, ArrowRight, Settings2, Check } from "lucide-react";
-import axios from "axios";
-import { LoadingOverlay } from "../feature/upload/components/LoadingOverlay"; // Importamos el nuevo componente
-
+import { useAnalysis } from "../feature/hooks/useAnalysis";
+import { useDatasetStore } from "../store/useDatasetStore";
 
 const DataConfigPage = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  const data = location.state?.data;
+  const data = useDatasetStore((s) => s.data);
+
+  if (!data) {
+  return <div style={{ color: "white" }}>No hay datos. Vuelve al upload.</div>;
+  }
 
   // 1. Configuración de columnas visibles
   const [visibleColumns, setVisibleColumns] = useState<string[]>(
@@ -43,7 +45,12 @@ const DataConfigPage = () => {
     setBlindadas(p => ({ ...p, [col]: !p[col] }));
   };
 
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { runAnalysis, loading } = useAnalysis((toonData) => {
+  console.log("Resultados Etapa 1:", toonData);
+
+  // navegación futura
+  // navigate("/semantic-analysis", { state: { toonData } });
+  });
 
 const handleNextStep = async () => {
   const selectedTargets = Object.keys(roles).filter(k => roles[k] === 'target');
@@ -52,12 +59,6 @@ const handleNextStep = async () => {
     alert("Debes seleccionar al menos una columna como TARGET para calcular la relevancia.");
     return;
   }
-  setIsProcessing(true); // Bloqueamos la UI o mostramos loader
-  
-  console.log(data.n_rows);
-  console.log(data.path);
-  console.log(data);
-
   const dossier = {
     n_rows: data.n_rows,        // Asegúrate de que se llame n_rows
     path: data.path,
@@ -66,22 +67,10 @@ const handleNextStep = async () => {
     mandatory: Object.keys(blindadas).filter(k => blindadas[k] && roles[k] === 'feature')
   };
 
-  try {
-    // Esta llamada dispara el script de Python (Etapa 1)
-    const response = await axios.post("http://localhost:8000/process-state-1", dossier);
-
-    // El backend te devolverá el TOON (los resultados de los cálculos y la muestra estratificada)
-    const toonData = response.data; 
-
-    // Navegamos a la siguiente pantalla pasando los resultados del análisis matemático
-    // navigate("/semantic-analysis", { state: { toonData } });
-
-    console.log("Resultados de Etapa 1 (TOON):", toonData);
-  } catch (err) {
-    console.error("Error en Etapa 1:", err);
-    alert("Error al procesar el análisis matemático.");
-  } finally {
-    setIsProcessing(false);
+try {
+    await runAnalysis(dossier);
+  } catch {
+    alert("Error al procesar el análisis.");
   }
 };
 
@@ -110,7 +99,6 @@ const handleNextStep = async () => {
 
   return (
     <div style={containerStyle}>
-      {isProcessing && <LoadingOverlay />}
       {/* BOTÓN VOLVER */}
       <button
         onClick={() => navigate(-1)}
@@ -133,7 +121,7 @@ const handleNextStep = async () => {
             <Settings2 size={18} /> Ver/Ocultar Columnas
           </button>
           
-          <div style={badgeStyle}>N = {data.n_total}</div>
+          <div style={badgeStyle}>N = {data.n_rows}</div>
 
           {/* DROPDOWN DE COLUMNAS */}
           {showColumnPicker && (
@@ -201,7 +189,7 @@ const handleNextStep = async () => {
       {/* BOTÓN DE ACCIÓN FINAL */}
       <button onClick={handleNextStep} style={mainBtnStyle}>
         Confirmar Selección y Avanzar <ArrowRight size={20} />
-        {isProcessing ? "Procesando..." : "Lanzar Documentos"}
+        {loading ? "Procesando..." : "Analizando Dataframe"}
       </button>
     </div>
   );
