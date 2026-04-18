@@ -54,9 +54,13 @@ const handleNextStep = async () => {
   }
   setIsProcessing(true); // Bloqueamos la UI o mostramos loader
   
+  console.log(data.n_rows);
+  console.log(data.path);
+  console.log(data);
+
   const dossier = {
-    n_total: data.n_total,
-    path: data.path_final, // El backend usa esto para leer el CSV completo
+    n_rows: data.n_rows,        // Asegúrate de que se llame n_rows
+    path: data.path,
     features: Object.keys(roles).filter(k => roles[k] === 'feature'),
     targets: Object.keys(roles).filter(k => roles[k] === 'target'),
     mandatory: Object.keys(blindadas).filter(k => blindadas[k] && roles[k] === 'feature')
@@ -64,13 +68,15 @@ const handleNextStep = async () => {
 
   try {
     // Esta llamada dispara el script de Python (Etapa 1)
-    const response = await axios.post("/api/process-state-1", dossier);
-    
+    const response = await axios.post("http://localhost:8000/process-state-1", dossier);
+
     // El backend te devolverá el TOON (los resultados de los cálculos y la muestra estratificada)
     const toonData = response.data; 
 
     // Navegamos a la siguiente pantalla pasando los resultados del análisis matemático
-    navigate("/semantic-analysis", { state: { toonData } });
+    // navigate("/semantic-analysis", { state: { toonData } });
+
+    console.log("Resultados de Etapa 1 (TOON):", toonData);
   } catch (err) {
     console.error("Error en Etapa 1:", err);
     alert("Error al procesar el análisis matemático.");

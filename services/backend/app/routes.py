@@ -1,4 +1,5 @@
 from http.client import HTTPException
+from importlib.resources import path
 import io
 import os
 import json
@@ -56,7 +57,7 @@ async def handle_upload(
     # --- UNIFICACIÓN (Paso clave para Etapa 0) ---
     df_unificado = pd.concat(lista_dataframes, ignore_index=True)
 
-    n_total = len(df_unificado) # Número total de filas en el DataFrame unificado
+    n_rows = len(df_unificado) # Número total de filas en el DataFrame unificado
     columnas_finales = df_unificado.columns.tolist() # Lista de columnas finales
 
     path_unificado = os.path.join("uploads", "dataset_unificado.xlsx")
@@ -70,20 +71,25 @@ async def handle_upload(
 
     return {
         "status": "ok", 
-        "n_total": n_total,
+        "n_rows": n_rows,
         "columnas": columnas_finales,
         "preview": preview,
         "path": path_unificado
     }
 
 
-@router.post("/api/process-state-1") # 2. Cambiamos 'app.post' por 'router.post'
+class Dossier(BaseModel):
+    """Model representing a dossier with total count, 
+    path, features, targets, and mandatory fields."""
+    n_rows: int
+    path: str
+    features: List[str]
+    targets: List[str]
+    mandatory: List[str]
+
+@router.post("/process-state-1") # 2. Cambiamos 'app.post' por 'router.post'
 def process_state_1(
-    n_rows: int = Form(...),
-    path: str = Form(...),
-    features: str = Form(...),
-    targets: str = Form(...),
-    mandatory: str = Form(...)
+    data: Dossier
 ):
     """
     Process file for Etapa 1 by applying cleaning functions to specified columns.
@@ -95,11 +101,22 @@ def process_state_1(
         Status and results of the processing.
     """
     try:
-        features_list = json.loads(features)
-        targets_list = json.loads(targets)
-        mandatory_list = json.loads(mandatory)
+        print(f"""Recibiendo datos para process_state_1:
+              n_rows={data.n_rows}, 
+              path={data.path}, 
+              features={data.features}, 
+              targets={data.targets}, 
+              mandatory={data.mandatory}""")
+        n_rows = data.n_rows
+        features_list = data.features
+        # targets_list = data.targets
+        mandatory_list = data.mandatory
+        print(f"""Listas parseadas:
+              features={features_list}, 
+              targets={targets_list}, 
+              mandatory={mandatory_list}""")
 
-        df = pd.read_csv(path)
+        df = pd.read_excel(data.path)
 
         analysis_results = {}
 
@@ -111,19 +128,19 @@ def process_state_1(
                 "nunique": nunique,
                 "r_ratio": round(r_ratio, 4),
                 "user_mandatory": col in mandatory_list,
-                "unique_pool": df[col].unique().tolist()[:20] # Limitamos para no saturar si hay muchas
+                "unique_pool": df[col].unique().tolist()[:20]
             }
 
             # Lógica de Clasificación por Niveles
             if nunique == 2:
                 col_data["technical_level"] = 1
                 col_data["subclass"] = "Binary"
-            
+
             elif r_ratio < 0.05:
                 col_data["technical_level"] = 2
                 # Aquí marcamos que requiere intervención del LLM
-                col_data["subclass"] = "PENDING_LLM" 
-            
+                col_data["subclass"] = "PENDING_LLM"
+
             elif 0.05 <= r_ratio < 0.80:
                 col_data["technical_level"] = 3
                 # Clasificación según el tipo de dato de pandas
@@ -131,11 +148,11 @@ def process_state_1(
                     col_data["subclass"] = "Continua"
                 else:
                     col_data["subclass"] = "Discreta"
-            
+
             else:
                 col_data["technical_level"] = 4
                 col_data["subclass"] = "Alta Cardinalidad"
-            
+
             analysis_results[col] = col_data
 
         return {
@@ -143,9 +160,10 @@ def process_state_1(
             "analysis": analysis_results,
             "targets": targets_list
         }
+
     except Exception as e:
-        print(f"Error en process_etapa_1: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Error en process_state_1: {e}")
+        return {"status": "error", "message": str(e)}
 
 
 
