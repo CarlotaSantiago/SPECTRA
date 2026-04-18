@@ -1,31 +1,50 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { ShieldCheck, Database, ArrowRight, Settings2, Check } from "lucide-react";
+import { ArrowLeft, Database, ArrowRight } from "lucide-react";
 import { useAnalysis } from "../feature/hooks/useAnalysis";
 import { useDatasetStore } from "../store/useDatasetStore";
 import { LoadingOverlay } from "../feature/components/LoadingOverlay";
+import { ColumnPicker } from "../feature/components/ColumnPicker";
+import { DataTable } from "../feature/components/DataTable";
 
+
+
+// --- MINI COMPONENTES INTERNOS (Para que no falle) ---
+const HeaderNav = ({ onBack }: { onBack: () => void }) => (
+  <button onClick={onBack} style={backBtnStyle}>
+    <ArrowLeft size={16} /> Volver
+  </button>
+);
+
+const Badge = ({ text }: { text: string }) => (
+  <div style={badgeStyle}>{text}</div>
+);
+
+const ActionButton = ({ loading, onClick, label }: { loading: boolean, onClick: () => void, label: string }) => (
+  <button onClick={onClick} disabled={loading} style={mainBtnStyle}>
+    {label} <ArrowRight size={20} />
+  </button>
+);
+
+// --- PÁGINA PRINCIPAL ---
 const DataConfigPage = () => {
   const navigate = useNavigate();
   const data = useDatasetStore((s) => s.data);
 
-  if (!data) {
-  return <div style={{ color: "white" }}>No hay datos. Vuelve al upload.</div>;
-  }
-
-  // 1. Configuración de columnas visibles
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(
-    data?.columnas?.slice(0, 8) || []
-  );
+  // 1. Estados
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(["idbuzon", "descrip", "edad", "servpeti", "desprest", "observ", "datosclini", "sospechadiag"]);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
-
-  // 2. Estados de Roles y Blindaje
   const [roles, setRoles] = useState<Record<string, 'feature' | 'target' | 'none'>>({});
   const [blindadas, setBlindadas] = useState<Record<string, boolean>>({});
 
-  if (!data) return <div style={{ padding: "50px", textAlign: "center", color: "white" }}>No hay datos.</div>;
+  const { runAnalysis, loading } = useAnalysis((toonData) => {
+    console.log("Resultados Etapa 1:", toonData);
+    // navigate("/semantic-analysis", { state: { toonData } });
+  });
 
-  // Lógica de rotación de roles (Clic en cabecera)
+  if (!data) return <div style={{ color: "white", padding: "20px" }}>No hay datos.</div>;
+
+  // 2. Lógica
   const cycleRole = (col: string) => {
     setRoles(prev => {
       const current = prev[col] || 'none';
@@ -42,273 +61,108 @@ const DataConfigPage = () => {
   };
 
   const toggleBlindar = (e: React.MouseEvent, col: string) => {
-    e.stopPropagation(); // Evita que el clic en el escudo active el cycleRole
+    e.stopPropagation();
     setBlindadas(p => ({ ...p, [col]: !p[col] }));
   };
 
-  const { runAnalysis, loading } = useAnalysis((toonData) => {
-  console.log("Resultados Etapa 1:", toonData);
+  const handleNextStep = async () => {
+    const selectedTargets = Object.keys(roles).filter(k => roles[k] === 'target');
+    if (selectedTargets.length === 0) {
+      alert("Debes seleccionar al menos una columna como TARGET.");
+      return;
+    }
 
-  // navegación futura
-  // navigate("/semantic-analysis", { state: { toonData } });
-  });
-
-const handleNextStep = async () => {
-  const selectedTargets = Object.keys(roles).filter(k => roles[k] === 'target');
-  
-  if (selectedTargets.length === 0) {
-    alert("Debes seleccionar al menos una columna como TARGET para calcular la relevancia.");
-    return;
-  }
-  const dossier = {
-    n_rows: data.n_rows,        // Asegúrate de que se llame n_rows
-    path: data.path,
-    features: Object.keys(roles).filter(k => roles[k] === 'feature'),
-    targets: Object.keys(roles).filter(k => roles[k] === 'target'),
-    mandatory: Object.keys(blindadas).filter(k => blindadas[k] && roles[k] === 'feature')
-  };
-
-try {
-    await runAnalysis(dossier);
-  } catch {
-    alert("Error al procesar el análisis.");
-  }
-};
-
-  // Estilo dinámico para las cabeceras interactivas
-  const getHeaderStyle = (col: string): React.CSSProperties => {
-    const role = roles[col] || 'none';
-    let border = "#444";
-    let bg = "#222";
-
-    if (role === 'feature') { border = "#3b82f6"; bg = "#2c2c2c"; }
-    if (role === 'target') { border = "#10b981"; bg = "#2c2c2c"; }
-
-    return {
-      padding: "12px 10px",
-      backgroundColor: bg,
-      borderBottom: `3px solid ${border}`,
-      cursor: "pointer",
-      transition: "all 0.2s ease",
-      textAlign: "left",
-      minWidth: "150px",
-      position: "sticky",
-      top: 0,
-      zIndex: 10
+    const dossier = {
+      n_rows: data.n_rows,
+      path: data.path,
+      features: Object.keys(roles).filter(k => roles[k] === 'feature'),
+      targets: selectedTargets,
+      mandatory: Object.keys(blindadas).filter(k => blindadas[k] && roles[k] === 'feature')
     };
+
+    try {
+      await runAnalysis(dossier);
+    } catch {
+      alert("Error al procesar el análisis.");
+    }
   };
 
   return (
-    <div style={{...containerStyle, 
-      pointerEvents: loading ? "none" : "auto",
-      opacity: loading ? 0.6 : 1}}>
-      {/* BOTÓN VOLVER */}
-      {loading && (
-      <LoadingOverlay message="Analizando dataset..." />
-    )}
-      <button
-        onClick={() => navigate(-1)}
-        style={{ background: "none", border: "none", color: "#648f8c", display: "flex", alignItems: "center", gap: "5px", cursor: "pointer", marginBottom: "15px", width: "fit-content" }}
-      >
-        <ArrowRight size={16} style={{ transform: "rotate(180deg)" }} /> Volver
-      </button>
+    <div style={containerStyle}>
+      {loading && <LoadingOverlay message="Analizando dataset..." />}
+      
+      <HeaderNav onBack={() => navigate(-1)} />
 
-      {/* HEADER SUPERIOR */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-        <h2 style={{ color: "#648f8c", margin: 0, display: "flex", alignItems: "center", gap: "10px", fontSize: "1.2rem" }}>
+      <div style={topControlsRow}>
+        <h2 style={titleStyle}>
           <Database size={20} /> Configuración de Roles
         </h2>
         
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", position: "relative" }}>
-          <button
-            onClick={() => setShowColumnPicker(!showColumnPicker)}
-            style={visibilityBtnStyle(showColumnPicker)}
-          >
-            <Settings2 size={18} /> Ver/Ocultar Columnas
-          </button>
-          
-          <div style={badgeStyle}>N = {data.n_rows}</div>
-
-          {/* DROPDOWN DE COLUMNAS */}
-          {showColumnPicker && (
-            <div style={columnPickerDropdown}>
-              <div style={{ padding: "8px", fontSize: "10px", color: "#666", fontWeight: "bold", borderBottom: "1px solid #333" }}>MOSTRAR COLUMNAS</div>
-              <div style={{ maxHeight: "300px", overflowY: "auto" }}>
-                {data.columnas.map((col: string) => (
-                  <div 
-                    key={col} 
-                    onClick={() => toggleColumnVisibility(col)} 
-                    style={dropdownItemStyle(visibleColumns.includes(col))}
-                  >
-                    {visibleColumns.includes(col) ? <Check size={12} /> : <div style={{ width: 12 }} />}
-                    {col}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <ColumnPicker 
+            allColumns={data.columnas}
+            visibleColumns={visibleColumns}
+            isOpen={showColumnPicker}
+            onToggleOpen={() => setShowColumnPicker(!showColumnPicker)}
+            onToggleColumn={toggleColumnVisibility}
+          />
+          <Badge text={`N = ${data.n_rows}`} />
         </div>
       </div>
 
-      {/* CONTENEDOR DE LA TABLA (Ocupa el resto de la pantalla) */}
-      <div style={tableWrapper}>
-        <table style={{ width: "100%", tableLayout: "fixed", borderCollapse: "separate", borderSpacing: 0 }}>
-          <thead>
-            <tr>
-              {data.columnas.filter((c: string) => visibleColumns.includes(c)).map((col: string) => (
-                <th key={col} style={getHeaderStyle(col)} onClick={() => cycleRole(col)}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", overflow: "hidden" }}>
-                    <span style={{ fontSize: "8px", color: roles[col] ? "inherit" : "#666", textTransform: "uppercase", fontWeight: "bold" }}>
-                      {roles[col] || 'OFF'}
-                    </span>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "4px" }}>
-                      <span style={colNameStyle}>
-                        {col}
-                      </span>
-                      {roles[col] === 'feature' && (
-                        <ShieldCheck 
-                          size={14} 
-                          onClick={(e) => toggleBlindar(e, col)}
-                          style={{ color: blindadas[col] ? "#ef4444" : "#6c6c6c", flexShrink: 0 }} 
-                        />
-                      )}
-                    </div>
-                  </div>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.preview.map((row: any, i: number) => (
-              <tr key={i}>
-                {data.columnas.filter((c: string) => visibleColumns.includes(c)).map((col: string) => (
-                  <td key={col} style={previewTdStyle}>
-                    {row[col]?.toString().substring(0, 80)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable 
+        previewData={data.preview}
+        allColumns={data.columnas}
+        visibleColumns={visibleColumns}
+        roles={roles}
+        blindadas={blindadas}
+        onCycleRole={cycleRole}
+        onToggleBlindar={toggleBlindar}
+      />
 
-      {/* BOTÓN DE ACCIÓN FINAL */}
-      <button onClick={handleNextStep} style={mainBtnStyle}>
-        Confirmar Selección y Avanzar <ArrowRight size={20} />
-        {loading ? "Procesando..." : "Analizando Dataframe"}
-      </button>
+      <ActionButton 
+        loading={loading} 
+        onClick={handleNextStep} 
+        label={loading ? "Procesando..." : "Confirmar Selección y Avanzar"} 
+      />
     </div>
   );
 };
 
-// --- ESTILOS ---
+// --- ESTILOS (Asegúrate de que DataTable y ColumnPicker acepten estas props) ---
 
 const containerStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  height: "100vh",
-  padding: "20px",
-  backgroundColor: "#121212",
-  color: "white",
-  boxSizing: "border-box",
-  overflow: "hidden"
+  display: "flex", flexDirection: "column", height: "100vh",
+  padding: "20px", backgroundColor: "#121212", color: "white",
+  boxSizing: "border-box", overflow: "hidden"
 };
 
-const tableWrapper: React.CSSProperties = {
-  flexGrow: 1,
-  overflowY: "auto",
-  overflowX: "hidden", 
-  borderRadius: "12px",
-  border: "1px solid #333",
-  background: "#1a1a1a",
-  width: "100%"
+const topControlsRow: React.CSSProperties = {
+  display: "flex", justifyContent: "space-between",
+  alignItems: "center", marginBottom: "20px"
 };
 
-const colNameStyle: React.CSSProperties = {
-  color: "white", 
-  fontSize: "11px", 
-  whiteSpace: "nowrap", 
-  overflow: "hidden", 
-  textOverflow: "ellipsis" 
+const titleStyle: React.CSSProperties = {
+  color: "#648f8c", margin: 0, display: "flex",
+  alignItems: "center", gap: "10px", fontSize: "1.2rem"
 };
 
-const previewTdStyle: React.CSSProperties = {
-  padding: "10px",
-  borderBottom: "1px solid #252525",
-  borderRight: "1px solid #252525",
-  fontSize: "11px",
-  color: "#888",
-  wordBreak: "break-word",
-  whiteSpace: "normal" as any, 
-  verticalAlign: "top",
-  lineHeight: "1.4"
+const backBtnStyle: React.CSSProperties = {
+  background: "none", border: "none", color: "#648f8c",
+  display: "flex", alignItems: "center", gap: "5px",
+  cursor: "pointer", marginBottom: "15px", width: "fit-content"
 };
 
 const mainBtnStyle: React.CSSProperties = {
-  marginTop: "15px",
-  padding: "14px",
-  borderRadius: "10px",
-  border: "none",
-  backgroundColor: "#648f8c",
-  color: "white",
-  fontSize: "15px",
-  fontWeight: "bold",
-  cursor: "pointer",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  gap: "10px"
+  marginTop: "15px", padding: "14px", borderRadius: "10px",
+  border: "none", backgroundColor: "#648f8c", color: "white",
+  fontSize: "15px", fontWeight: "bold", cursor: "pointer",
+  display: "flex", justifyContent: "center", alignItems: "center", gap: "10px"
 };
-
-const visibilityBtnStyle = (active: boolean): React.CSSProperties => ({
-  backgroundColor: active ? "#648f8c" : "transparent",
-  color: active ? "white" : "#648f8c",
-  border: "1px solid #648f8c",
-  padding: "8px 16px",
-  borderRadius: "8px",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  fontSize: "13px",
-  fontWeight: "bold",
-  transition: "all 0.2s"
-});
-
-const columnPickerDropdown: React.CSSProperties = {
-  position: "absolute",
-  top: "45px",
-  right: 0,
-  backgroundColor: "#1a1a1a",
-  border: "1px solid #333",
-  borderRadius: "10px",
-  boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-  zIndex: 100,
-  minWidth: "200px",
-  overflow: "hidden"
-};
-
-const dropdownItemStyle = (selected: boolean): React.CSSProperties => ({
-  padding: "10px 12px",
-  display: "flex",
-  alignItems: "center",
-  gap: "10px",
-  cursor: "pointer",
-  fontSize: "12px",
-  color: selected ? "white" : "#666",
-  backgroundColor: selected ? "#648f8c15" : "transparent",
-  borderBottom: "1px solid #252525",
-  transition: "0.2s"
-});
 
 const badgeStyle: React.CSSProperties = {
-  backgroundColor: "#648f8c33",
-  padding: "6px 15px",
-  borderRadius: "20px",
-  color: "#648f8c",
-  fontSize: "13px",
-  border: "1px solid #648f8c33",
-  fontWeight: "bold"
+  backgroundColor: "#648f8c33", padding: "6px 15px", borderRadius: "20px",
+  color: "#648f8c", fontSize: "13px", border: "1px solid #648f8c33", fontWeight: "bold"
 };
 
 export default DataConfigPage;
