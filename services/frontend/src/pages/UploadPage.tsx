@@ -18,6 +18,8 @@ const UploadPage = () => {
       if (data.status === "ok") {
         setData(data);
         navigate("/data-config");
+      }else{
+        console.error("La respuesta del servidor no es válida:", data);
       }
       setIsUploading(false);
     });

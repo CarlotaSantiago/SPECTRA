@@ -28,15 +28,19 @@ export const useUpload = (onSuccess: (data: any) => void) => {
 
   const upload = async () => {
     if (!files.length) return;
-    const data = await uploadFiles(files);
-    onSuccess(data);
+    try {
+      const data = await uploadFiles(files);
+      if (data) {
+        onSuccess(data);
+      } else {
+        // Si el adapter devuelve undefined pero no lanza error
+        onSuccess({ status: "error", message: "No data received" });
+      }
+    } catch (error) {
+      console.error("Error in hook upload:", error);
+      onSuccess({ status: "error", message: "Network error" });
+    }
   };
 
-  return {
-    files,
-    addFiles,
-    removeFile,
-    togglePreprocess,
-    upload,
-  };
+  return { files, addFiles, removeFile, togglePreprocess, upload };
 };

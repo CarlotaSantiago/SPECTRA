@@ -16,6 +16,5 @@ export const uploadFiles = async (files: FileWithSettings[]) => {
 
   formData.append("indices_to_preprocess", JSON.stringify(indices));
 
-  const res = await post("/upload", formData);
-  return res.data;
+  return post("/upload", formData);
 };
