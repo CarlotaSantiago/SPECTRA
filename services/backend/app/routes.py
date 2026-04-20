@@ -1,20 +1,22 @@
 from importlib.resources import path
 import io
+import json
 import logging
 import os
-import json
+
 import numpy as np
 import pandas as pd
-from typing import List
+from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from pandas.api.types import is_float_dtype, is_object_dtype, is_string_dtype
 from pydantic import BaseModel
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.preprocessing import LabelEncoder
+from typing import Any, Dict, List
+
 from app.services.processor import limpiar_datos
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from app.services.predict_models import predecir_final
+from app.services.strarified_sampling import stratified_sample_100
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
-from typing import Dict, Any
-from pandas.api.types import is_object_dtype, is_string_dtype, is_float_dtype
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +218,11 @@ def process_state_1(data: Dossier):
             )
 
             analysis_results[col] = col_data
+        
+        sample_df = stratified_sample_100(df, data.targets)
+        
+        # Convertimos el sample a una lista de dicts para que sea JSON serializable
+        sample_json = sample_df.replace({np.nan: None}).to_dict(orient='records')
 
         return {
             "status": "ok",
@@ -223,7 +230,8 @@ def process_state_1(data: Dossier):
                 "n_rows": n_rows, 
                 "target_types": target_meta
             },
-            "analysis": analysis_results
+            "analysis": analysis_results, 
+            "sample_df": sample_json
         }
 
     except Exception as e:
