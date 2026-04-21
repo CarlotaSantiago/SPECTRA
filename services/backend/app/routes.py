@@ -7,15 +7,16 @@ import os
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
-from pandas.api.types import is_float_dtype, is_object_dtype, is_string_dtype
+from pandas.api.types import is_float_dtype, is_numeric_dtype, is_object_dtype, is_string_dtype
 from pydantic import BaseModel
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.preprocessing import LabelEncoder
 from typing import Any, Dict, List
 
+from app.services.routeOllama import call_ollama
 from app.services.processor import limpiar_datos
 from app.services.predict_models import predecir_final
-from services.backend.app.services.build_toon import build_toon_payload
+from app.services.build_toon import build_toon_payload
 from app.services.strarified_sampling import stratified_sample_100
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
 
@@ -111,6 +112,9 @@ def classify_feature(series: pd.Series, n_rows: int) -> Dict[str, Any]:
 
     if nunique == 2:
         result.update({"technical_level": 1, "subclass": "binary"})
+    elif is_numeric_dtype(series) and nunique > 10:
+        subclass = "continuous" if is_float_dtype(series) else "discrete"
+        result.update({"technical_level": 3, "subclass": subclass})
     elif ratio < 0.05:
         result.update({"technical_level": 2, "subclass": "categorical"})
     elif ratio < 0.8:
@@ -171,6 +175,7 @@ class Dossier(BaseModel):
     features: List[str]
     targets: List[str]
     mandatory: List[str]
+    model: str
 
 @router.post("/process-state1")
 def process_state_1(data: Dossier):
@@ -178,6 +183,7 @@ def process_state_1(data: Dossier):
         # 1. Carga de datos (Soporte para Excel y CSV con manejo de encoding)
         
         df = pd.read_excel(data.path)
+        df = df.fillna("")
         if df.empty:
             raise ValueError("Dataset is empty")
         
@@ -191,13 +197,18 @@ def process_state_1(data: Dossier):
             for target in data.targets
             if target in df.columns
         }
-
+        columnas = list(data.targets)
         analysis_results = {}
 
         for col in data.features:
             if col not in df.columns:
                 logger.warning(f"Column not found: {col}")
                 continue
+
+            nombre = col + "_limpio"
+            if nombre in df.columns:
+
+                col = nombre
 
             series = df[col]
 
@@ -208,6 +219,9 @@ def process_state_1(data: Dossier):
                 "unique_pool": series.dropna().astype(str).unique()[:20].tolist()
             })
 
+            if col_data["technical_level"] in [1, 2]:
+                columnas.append(col)
+
             is_discrete = col_data["technical_level"] in [1, 2]
 
             col_data["information_gain"] = compute_information_gain(
@@ -217,29 +231,59 @@ def process_state_1(data: Dossier):
                 target_meta,
                 is_discrete
             )
-
             analysis_results[col] = col_data
-        
-        sample_df = stratified_sample_100(df, data.targets)
 
-        # Convertimos el sample a una lista de dicts para que sea JSON serializable
-        sample_json = sample_df.replace({np.nan: None}).to_dict(orient='records')
-
-        data ={
+        sample_df = stratified_sample_100(df[columnas], data.targets)
+        sample_df_clean = sample_df.astype(object).fillna("")
+        metadata ={
             "n_rows": n_rows, 
             "targets": data.targets
         }
-        toon_str = build_toon_payload(data, analysis_results, sample_df)
 
-        print(toon_str)
+        print("Modelo: " + data.model)
+        system_prompt = """/nothink
+            You are a Data Science Assistant specialized in semantic feature classification.
+            Your ONLY task: classify each feature in CATEGORICAL_SUBCLASS_EVALUATION as NOMINAL or ORDINAL.
+
+            OUTPUT FORMAT — reproduce this structure exactly, one entry per feature:
+            # SEMANTIC_CLASSIFICATION_RESULTS
+            feature_name:
+            subclass: NOMINAL
+            mapping: null
+            reasoning: one sentence.
+
+            feature_name:
+            subclass: ORDINAL
+            mapping: {value1: 0, value2: 1, value3: 2}
+            reasoning: one sentence.
+
+            CLASSIFICATION RULES:
+            1. ORDINAL: values have a natural, unambiguous order or hierarchy (e.g. Junior < Senior, Baja < Alta).
+            2. NOMINAL: values are distinct categories with no inherent order (e.g. departments, service codes).
+            3. Use representative_sample to observe how values relate to targets before deciding.
+            4. If uncertain between ORDINAL and NOMINAL, default to NOMINAL.
+            5. For ORDINAL, mapping must include ALL values from unique_pool, starting at 0.
+            6. For NOMINAL, mapping must be null.
+
+            STRICT OUTPUT RULES:
+            - Output ONLY the # SEMANTIC_CLASSIFICATION_RESULTS block.
+            - No explanations outside the reasoning field.
+            - No recommendations, no observations, no markdown headers beyond the block.
+            - No bullet points, no numbered lists.
+            - One entry per feature, in the same order as CATEGORICAL_SUBCLASS_EVALUATION.
+            """
+
+        toon = build_toon_payload(metadata, analysis_results, sample_df_clean)
+        user_prompt = toon
+        with open("toon.json", "w", encoding="utf-8") as f:
+            f.write(user_prompt)
+        semantic_analysis = call_ollama(data.model, system_prompt, user_prompt)
         return {
             "status": "ok",
-            "metadata": {
-                "n_rows": n_rows, 
-                "target_types": target_meta
-            },
-            "analysis": analysis_results, 
-            "sample_df": sample_json
+            "metadata": metadata,
+            "analysis": analysis_results,
+            "semantic": semantic_analysis, 
+            "sample_df": sample_df_clean
         }
 
     except Exception as e:

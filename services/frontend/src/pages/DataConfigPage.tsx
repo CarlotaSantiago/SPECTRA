@@ -6,7 +6,7 @@ import { useDatasetStore } from "../store/useDatasetStore";
 import { LoadingOverlay } from "../feature/components/LoadingOverlay";
 import { ColumnPicker } from "../feature/components/ColumnPicker";
 import { DataTable } from "../feature/components/DataTable";
-
+import { useOllamaModels } from "../feature/hooks/useOllamaModels";
 
 
 // --- MINI COMPONENTES INTERNOS (Para que no falle) ---
@@ -30,8 +30,10 @@ const ActionButton = ({ loading, onClick, label }: { loading: boolean, onClick: 
 const DataConfigPage = () => {
   const navigate = useNavigate();
   const data = useDatasetStore((s) => s.data);
+  const { models: ollamaModels, loading: loadingModels } = useOllamaModels();
 
   // 1. Estados
+  const [selectedModel, setSelectedModel] = useState(""); // <-- 2. Estado del modelo
   const [visibleColumns, setVisibleColumns] = useState<string[]>(["idbuzon", "descrip", "edad", "servpeti", "desprest", "observ", "datosclini", "sospechadiag"]);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [roles, setRoles] = useState<Record<string, 'feature' | 'target' | 'none'>>({});
@@ -67,17 +69,29 @@ const DataConfigPage = () => {
 
   const handleNextStep = async () => {
     const selectedTargets = Object.keys(roles).filter(k => roles[k] === 'target');
+    const selectedFeatures = Object.keys(roles).filter(k => roles[k] === 'feature');
     if (selectedTargets.length === 0) {
       alert("Debes seleccionar al menos una columna como TARGET.");
+      return;
+    }
+
+    if (selectedFeatures.length === 0) {
+      alert("Debes seleccionar al menos una columna como FEATURE.");
+      return;
+    }
+
+    if (!selectedModel) { // <-- 3. Validación obligatoria
+      alert("Por favor, selecciona un modelo de IA para el análisis.");
       return;
     }
 
     const dossier = {
       n_rows: data.n_rows,
       path: data.path,
-      features: Object.keys(roles).filter(k => roles[k] === 'feature'),
+      features: selectedFeatures,
       targets: selectedTargets,
-      mandatory: Object.keys(blindadas).filter(k => blindadas[k] && roles[k] === 'feature')
+      mandatory: Object.keys(blindadas).filter(k => blindadas[k] && roles[k] === 'feature'),
+      model: selectedModel
     };
 
     try {
@@ -89,8 +103,8 @@ const DataConfigPage = () => {
 
   return (
     <div style={containerStyle}>
-      {loading && <LoadingOverlay message="Analizando dataset..." />}
-      
+      {(loading || loadingModels) && <LoadingOverlay message={loadingModels ? "Cargando modelos de IA..." : "Analizando dataset..."} />}
+
       <HeaderNav onBack={() => navigate(-1)} />
 
       <div style={topControlsRow}>
@@ -99,6 +113,15 @@ const DataConfigPage = () => {
         </h2>
         
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          {/* --- SELECTOR DE MODELO --- */}
+          <select 
+            value={selectedModel} 
+            onChange={(e) => setSelectedModel(e.target.value)}
+            style={selectStyle}
+          >
+            <option value="">Seleccionar Modelo LLM...</option>
+            {ollamaModels.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
           <ColumnPicker 
             allColumns={data.columnas}
             visibleColumns={visibleColumns}
@@ -130,6 +153,16 @@ const DataConfigPage = () => {
 };
 
 // --- ESTILOS (Asegúrate de que DataTable y ColumnPicker acepten estas props) ---
+const selectStyle: React.CSSProperties = {
+  backgroundColor: "#1e1e1e",
+  color: "#648f8c",
+  border: "1px solid #648f8c33",
+  padding: "8px 12px",
+  borderRadius: "8px",
+  outline: "none",
+  cursor: "pointer",
+  fontWeight: "bold"
+};
 
 const containerStyle: React.CSSProperties = {
   display: "flex", flexDirection: "column", height: "100vh",

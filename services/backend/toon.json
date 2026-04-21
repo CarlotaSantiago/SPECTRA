@@ -1,0 +1,116 @@
+# GLOBAL_METADATA
+total_rows: 10374
+targets: ['descrip', 'desprest', 'observ']
+sampling_strategy: Stratified_Proportional
+
+# REPRESENTATIVE_SAMPLE_100
+| descrip                        | desprest                                                     | observ        | servpeti   |
+|:-------------------------------|:-------------------------------------------------------------|:--------------|:-----------|
+| ECOGRAFIA VERIN                | ECOGRAFIA DE CUELLO (TIROIDES, PAROTIDAS, SUBMAXILARES, ETC) |               | V061       |
+| ECOGRAFIAS                     | ECOGRAFIA DE CUELLO (TIROIDES, PAROTIDAS, SUBMAXILARES, ETC) |               | C162       |
+| ECOGRAFIAS                     | ECOGRAFIA DE CUELLO (TIROIDES, PAROTIDAS, SUBMAXILARES, ETC) |               | C109       |
+| ECOGRAFIAS                     | ECOGRAFIA DE ESCROTO                                         |               | B135       |
+| ECOGRAFIAS                     | ECOGRAFIA DE MAMA                                            |               | B034       |
+| ECOGRAFIAS                     | ECOGRAFIA DE MAMA                                            |               | B034       |
+| ECOGRAFIAS                     | ECOGRAFIA DE MAMA                                            |               | C162       |
+| MAMOGRAFIAS PREFERENTES        | ECOGRAFIA DE MAMA                                            |               | CGDC       |
+| MM ORDINARIAS Y A FECHA PREFIJ | ECOGRAFIA DE MAMA                                            |               | C354       |
+| MM ORDINARIAS Y A FECHA PREFIJ | ECOGRAFIA DE MAMA                                            |               | C168       |
+| MM ORDINARIAS Y A FECHA PREFIJ | ECOGRAFIA DE MAMA                                            |               | C005       |
+| MM ORDINARIAS Y A FECHA PREFIJ | ECOGRAFIA DE MAMA                                            | B III         | CGDC       |
+| MM ORDINARIAS Y A FECHA PREFIJ | ECOGRAFIA DE MAMA                                            | B III 6 MESES | CGDC       |
+| RADIOLOGIA DE ABDOMEN          | ECOGRAFIA DE CUELLO (TIROIDES, PAROTIDAS, SUBMAXILARES, ETC) |               | ENDE       |
+| RADIOLOGIA DE ABDOMEN          | ECOGRAFIA DE CUELLO (TIROIDES, PAROTIDAS, SUBMAXILARES, ETC) |               | C003       |
+| RADIOLOGIA DE ABDOMEN          | ECOGRAFIA DE CUELLO (TIROIDES, PAROTIDAS, SUBMAXILARES, ETC) |               | ENDE       |
+| RADIOLOGIA DE ABDOMEN          | ECOGRAFIA DE CUELLO (TIROIDES, PAROTIDAS, SUBMAXILARES, ETC) |               | ENDE       |
+| RADIOLOGIA DE ABDOMEN          | ECOGRAFIA DE CUELLO (TIROIDES, PAROTIDAS, SUBMAXILARES, ETC) |               | ENDE       |
+| RADIOLOGIA DE ABDOMEN          | ECOGRAFIA DE CUELLO (TIROIDES, PAROTIDAS, SUBMAXILARES, ETC) |               | ENDE       |
+| RADIOLOGIA DE ABDOMEN          | ECOGRAFIA DE CUELLO (TIROIDES, PAROTIDAS, SUBMAXILARES, ETC) |               | C009       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA ARTICULAR                                          | A             | C131       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA ARTICULAR                                          | A             | C003       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA ARTICULAR                                          | B             | C004       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA ARTICULAR                                          | B             | C171       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA ARTICULAR                                          | B             | C118       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA ARTICULAR                                          | B             | C355       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA ARTICULAR                                          | B             | C131       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA ARTICULAR                                          | B             | C113       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA ARTICULAR                                          | C             | C168       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | C191       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | TRAE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | CGDE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | C102       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | C113       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | TRAE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | CGDE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | C003       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | C008       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | CGDC       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | CGDE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | CGDE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | A             | C355       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | AUTO          | CGDE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | C008       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | C005       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | C008       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | CGDE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | C101       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | C003       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | DERE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | C118       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | CGDE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | C303       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | B             | TRAE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | C             | C188       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA DE PARTES BLANDAS                                  | C             | C118       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | A             | C320       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | A             | C128       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | A             | C308       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C005       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C009       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C355       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C131       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C176       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C001       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C005       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C004       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C113       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C355       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C175       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | REHE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C003       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C168       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C004       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | ANRD       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | TRAE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C123       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | B             | C005       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | C319       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | C118       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | TRAE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | C103       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | C130       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | REUE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | C123       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | C118       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | C157       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | C158       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C             | C110       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C1            | C144       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C1            | C131       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA HOMBRO                                             | C2            | C167       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA MANO - DEDOS                                       | A             | TRAE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA MANO - DEDOS                                       | B             | V136       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA PIE - DEDOS                                        | B             | TRAE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA RODILLA                                            | B             | REHE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | ECOGRAFIA TOBILLO                                            | B             | MIRE       |
+| RADIOLOGIA MUSCULOESQUELETICA  | LAVADO TENDINOSO CON CONTROL DE ECOGRAFIA                    | CALCIO        | TRAE       |
+| RX GENITO-URINARIO-TELEMANDO   | ECOGRAFIA DE ESCROTO                                         |               | UROE       |
+| RX GENITO-URINARIO-TELEMANDO   | ECOGRAFIA DE ESCROTO                                         |               | UROE       |
+
+# CATEGORICAL_SUBCLASS_EVALUATION
+servpeti:
+  technical_level: 2
+  ig_scores: {'descrip': 0.5358, 'desprest': 0.6655, 'observ': 0.3892}
+  unique_pool: ['MIIC', 'ENDE', 'B047', 'C162', 'C118', 'HEME', 'C106', 'C355', 'ORLE', 'C002', 'C008', 'C109', 'V061', 'C156', 'C009']
+  user_mandatory: True
+
