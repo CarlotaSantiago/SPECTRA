@@ -15,6 +15,7 @@ from typing import Any, Dict, List
 
 from app.services.processor import limpiar_datos
 from app.services.predict_models import predecir_final
+from services.backend.app.services.build_toon import build_toon_payload
 from app.services.strarified_sampling import stratified_sample_100
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
 
@@ -220,10 +221,17 @@ def process_state_1(data: Dossier):
             analysis_results[col] = col_data
         
         sample_df = stratified_sample_100(df, data.targets)
-        
+
         # Convertimos el sample a una lista de dicts para que sea JSON serializable
         sample_json = sample_df.replace({np.nan: None}).to_dict(orient='records')
 
+        data ={
+            "n_rows": n_rows, 
+            "targets": data.targets
+        }
+        toon_str = build_toon_payload(data, analysis_results, sample_df)
+
+        print(toon_str)
         return {
             "status": "ok",
             "metadata": {

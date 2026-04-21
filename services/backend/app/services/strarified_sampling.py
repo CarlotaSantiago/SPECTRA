@@ -49,7 +49,7 @@ exacto.
             floor_quotas.at[group] += 1 
      
     # Garantía: cada grupo tiene al menos 1 fila 
-    floor_quotas = floor_quotas.clip(lower=1)
+    #floor_quotas = floor_quotas.clip(lower=1)
     
     # ... (Resto de la función igual)
      
