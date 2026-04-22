@@ -35,6 +35,16 @@ const UploadPage = () => {
     }
   };
 
+  // Creamos una función para controlar que solo entre uno
+  const handleAddFile = (newFiles: File[]) => {
+    if (files.length > 0) {
+      alert("Solo puedes cargar un archivo a la vez.");
+      return;
+    }
+    // Si solo quieres el primero aunque suelte varios de golpe
+    addFiles([newFiles[0]]);
+  };
+
   // Estilos de la página
   const containerStyle: React.CSSProperties = {
     width: "100%",
@@ -69,10 +79,10 @@ const UploadPage = () => {
 
       <div style={{ width: "100%", maxWidth: "900px", textAlign: "center" }}>
         <h2 style={{ marginBottom: "20px", color: "#648f8c" }}>
-          Selecciona Archivos para Procesar
+          Selecciona un Archivo para Procesar
         </h2>
 
-        {files.length === 0 && <Dropzone onFiles={addFiles} />}
+        {files.length === 0 && <Dropzone onFiles={handleAddFile} />}
 
         <FileList
           files={files}

@@ -15,7 +15,7 @@ export const FileList = ({
   return (
     <div style={{ marginTop: "30px" }}>
       <h3 style={{ marginBottom: "15px", fontSize: "18px" }}>
-        Archivos en cola:
+        Archivo qque se desea subir:
       </h3>
 
       {files.map((f, i) => (

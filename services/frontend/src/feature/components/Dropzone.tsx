@@ -43,7 +43,7 @@ export const Dropzone = ({
       <Upload size={48} color="#648f8c" style={{ marginBottom: "15px" }} />
 
       <p style={{ fontSize: "18px" }}>
-        Arrastra tus archivos o haz clic aquí
+        Arrastra tu archivo o haz clic aquí
       </p>
 
       <p style={{ fontSize: "12px", color: "#64748b" }}>
