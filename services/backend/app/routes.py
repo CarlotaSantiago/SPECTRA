@@ -63,7 +63,10 @@ async def handle_upload(
 
         if preprocess:
             save_path = os.path.join("uploads", f"procesado_{file.filename}")
-            data.to_excel(save_path, index=False)              
+            data.to_excel(save_path, index=False)
+        else:
+            save_path = os.path.join("uploads", file.filename)
+            data.to_excel(save_path, index=False)
 
         # Limpiar valores problemáticos para JSON
         data.replace([np.inf, -np.inf], np.nan, inplace=True)
@@ -80,7 +83,7 @@ async def handle_upload(
         }
     except Exception as e:
         logger.error(f"Error en upload: {e}")
-        
+
         return {
             "status": "error",
             "message": str(e)

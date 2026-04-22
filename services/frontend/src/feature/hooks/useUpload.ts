@@ -7,15 +7,15 @@ export const useUpload = (onSuccess: (data: any) => void) => {
   const [files, setFiles] = useState<FileWithSettings[]>([]);
 
   const addFiles = (newFiles: File[]) => {
-    const formatted = newFiles.map((file) => ({
-      file,
+    const formatted: FileWithSettings[] = [{
+      file: newFiles[0],
       preprocess: false,
-    }));
-    setFiles((prev) => [...prev, ...formatted]);
+    }];
+    setFiles(formatted);
   };
 
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
+  const removeFile = (_index: number) => {
+    setFiles([]);
   };
 
   const togglePreprocess = (index: number) => {
