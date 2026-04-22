@@ -6,6 +6,7 @@ import os
 
 import numpy as np
 import pandas as pd
+import torch
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_object_dtype, is_string_dtype
 from pydantic import BaseModel
@@ -13,6 +14,7 @@ from sklearn.feature_selection import mutual_info_classif, mutual_info_regressio
 from sklearn.preprocessing import LabelEncoder
 from typing import Any, Dict, List
 
+from app.services.device_detection import get_device
 from app.services.routeOllama import call_ollama
 from app.services.processor import limpiar_datos
 from app.services.predict_models import predecir_final
@@ -136,6 +138,7 @@ def compute_information_gain(
     targets: list,
     target_meta: Dict[str, str],
     is_discrete: bool,
+    device: torch.device
 ) -> Dict[str, float]:
 
     scores = {}
@@ -182,6 +185,9 @@ def process_state_1(data: Dossier):
     try:
         # 1. Carga de datos (Soporte para Excel y CSV con manejo de encoding)
         
+        device = get_device()
+        print(f"TRABAJANDO CON: {device}")
+
         df = pd.read_excel(data.path)
         df = df.fillna("")
         if df.empty:
@@ -229,7 +235,8 @@ def process_state_1(data: Dossier):
                 col,
                 data.targets,
                 target_meta,
-                is_discrete
+                is_discrete,
+                device=device
             )
             analysis_results[col] = col_data
 
