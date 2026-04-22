@@ -104,7 +104,7 @@ const DataConfigPage = () => {
   return (
     <div style={containerStyle}>
       {(loading || loadingModels) && <LoadingOverlay message={loadingModels ? "Cargando modelos de IA..." : "Analizando dataset..."} />}
-
+    
       <HeaderNav onBack={() => navigate(-1)} />
 
       <div style={topControlsRow}>
@@ -129,7 +129,7 @@ const DataConfigPage = () => {
             onToggleOpen={() => setShowColumnPicker(!showColumnPicker)}
             onToggleColumn={toggleColumnVisibility}
           />
-          <Badge text={`N = ${data.n_rows}`} />
+          <Badge text={`Filas del Dataset = ${data.n_rows}`} />
         </div>
       </div>
 
