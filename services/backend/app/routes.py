@@ -30,64 +30,61 @@ router = APIRouter()
 
 @router.post("/upload") # 2. Cambiamos 'app.post' por 'router.post'
 async def handle_upload(
-    files: List[UploadFile] = File(...),
-    indices_to_preprocess: str = Form(...) # Recibimos como str para evitar errores 422
+    file: UploadFile = File(...),
+    preprocess: bool = Form(...)
 ):
     """
     Handle file upload and preprocessing.
     
     Args:
-        files: List of uploaded files.
+        file: one file for preprocessing.
         indices_to_preprocess: JSON string containing indices of files to preprocess.
     
     Returns:
         Status and results of the upload and preprocessing.
     """
-    try:
-        # Convertimos el string JSON a lista de índices
-        to_process_list = json.loads(indices_to_preprocess)
-    except (json.JSONDecodeError, ValueError):
-        # Si no es un JSON válido, asumimos que no se preprocesará nada
-        to_process_list = []
-
-    lista_dataframes = []
-
-    for index, file in enumerate(files):
+    try: 
         content = await file.read()
-        # Leer archivo actual
-        df_temp = pd.read_excel(io.BytesIO(content)) if file.filename.endswith(('.xlsx', '.xls')) else pd.read_csv(io.BytesIO(content))
 
-        # Aplicar limpieza si toca (tus funciones de stopwords)
-        if index in to_process_list:
+        if file.filename.endswith(('.xlsx', '.xls')):
+            data = pd.read_excel(io.BytesIO(content))
+        else:
+            # Añadimos soporte para CSV por si acaso
+            data = pd.read_csv(io.BytesIO(content))
+
+        if preprocess:
             columnas_a_limpiar = ['datosclini', 'sospechadiag']
             for col in columnas_a_limpiar:
-                if col in df_temp.columns:
-                    df_temp[f'{col}_limpio'] = limpiar_datos(df_temp[col])
+                if col in data.columns:
+                    data[f'{col}_limpio'] = limpiar_datos(data[col])
+
+        n_rows = len(data)
+        final_columns = data.columns.tolist()
+
+        if preprocess:
+            save_path = os.path.join("uploads", f"procesado_{file.filename}")
+            data.to_excel(save_path, index=False)              
+
+        # Limpiar valores problemáticos para JSON
+        data.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+        # Convertir NaN a None (compatible con JSON)
+        preview = data.head(10).replace({np.nan: None}).to_dict(orient='records')
+
+        return {
+            "status": "ok", 
+            "n_rows": n_rows,
+            "columnas": final_columns,
+            "preview": preview,
+            "path": save_path
+        }
+    except Exception as e:
+        logger.error(f"Error en upload: {e}")
         
-        lista_dataframes.append(df_temp)
-
-    # --- UNIFICACIÓN (Paso clave para Etapa 0) ---
-    df_unificado = pd.concat(lista_dataframes, ignore_index=True)
-
-    n_rows = len(df_unificado) # Número total de filas en el DataFrame unificado
-    columnas_finales = df_unificado.columns.tolist() # Lista de columnas finales
-
-    path_unificado = os.path.join("uploads", "dataset_unificado.xlsx")
-    df_unificado.to_excel(path_unificado, index=False)
-
-    # Limpiar valores problemáticos para JSON
-    df_unificado.replace([np.inf, -np.inf], np.nan, inplace=True)
-
-    # Convertir NaN a None (compatible con JSON)
-    preview = df_unificado.head(10).replace({np.nan: None}).to_dict(orient='records')
-
-    return {
-        "status": "ok", 
-        "n_rows": n_rows,
-        "columnas": columnas_finales,
-        "preview": preview,
-        "path": path_unificado
-    }
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 def classify_target(series: pd.Series, n_rows: int) -> str:
     """
