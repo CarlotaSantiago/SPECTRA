@@ -7,7 +7,7 @@ import { LoadingOverlay } from "../feature/components/LoadingOverlay";
 import { ColumnPicker } from "../feature/components/ColumnPicker";
 import { DataTable } from "../feature/components/DataTable";
 import { useOllamaModels } from "../feature/hooks/useOllamaModels";
-
+import { ModelPicker } from "../feature/components/ModelPicker";
 
 // --- MINI COMPONENTES INTERNOS (Para que no falle) ---
 const HeaderNav = ({ onBack }: { onBack: () => void }) => (
@@ -34,8 +34,9 @@ const DataConfigPage = () => {
 
   // 1. Estados
   const [selectedModel, setSelectedModel] = useState(""); // <-- 2. Estado del modelo
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(["idbuzon", "descrip", "edad", "servpeti", "desprest", "observ", "datosclini", "sospechadiag"]);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(["idbuzon", "descrip", "edad", "servpeti", "especialidad", "sala", "prioridad", "datosclini", "sospechadiag"]);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [showModelPicker, setShowModelPicker] = useState(false);
   const [roles, setRoles] = useState<Record<string, 'feature' | 'target' | 'none'>>({});
   const [blindadas, setBlindadas] = useState<Record<string, boolean>>({});
 
@@ -112,16 +113,21 @@ const DataConfigPage = () => {
           <Database size={20} /> Configuración de Roles
         </h2>
         
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+        <div style={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            alignItems: 'center',
+            gap: '12px' 
+        }}>
           {/* --- SELECTOR DE MODELO --- */}
-          <select 
-            value={selectedModel} 
-            onChange={(e) => setSelectedModel(e.target.value)}
-            style={selectStyle}
-          >
-            <option value="">Seleccionar Modelo LLM...</option>
-            {ollamaModels.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          <div style={{ display: 'flex', gap: '10px' }}>
+          <ModelPicker 
+            allModels={ollamaModels}
+            selectedModel={selectedModel}
+            isOpen={showModelPicker} // Necesitas un nuevo useState [showModelPicker, setShowModelPicker]
+            onToggleOpen={() => setShowModelPicker(!showModelPicker)}
+            onSelectModel={setSelectedModel}
+          />
           <ColumnPicker 
             allColumns={data.columnas}
             visibleColumns={visibleColumns}
@@ -129,6 +135,7 @@ const DataConfigPage = () => {
             onToggleOpen={() => setShowColumnPicker(!showColumnPicker)}
             onToggleColumn={toggleColumnVisibility}
           />
+          </div>
           <Badge text={`Filas del Dataset = ${data.n_rows}`} />
         </div>
       </div>
