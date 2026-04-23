@@ -317,7 +317,7 @@ def process_state_1(data: Dossier):
 
         toon = build_toon_payload(metadata, analysis_results, sample_df_clean)
         user_prompt = toon
-        with open("toon.json", "w", encoding="utf-8") as f:
+        with open("toon.txt", "w", encoding="utf-8") as f:
             f.write(user_prompt)
         semantic_analysis = call_ollama(data.model, system_prompt, user_prompt)
         return {
