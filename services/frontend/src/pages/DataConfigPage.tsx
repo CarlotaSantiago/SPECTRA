@@ -141,7 +141,7 @@ const DataConfigPage = () => {
       </div>
 
       <DataTable 
-        previewData={data.preview}
+        filePath={data.path}
         allColumns={data.columnas}
         visibleColumns={visibleColumns}
         roles={roles}
