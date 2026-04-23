@@ -27,7 +27,26 @@ export const DataTable = ({
   const [inputPage, setInputPage] = useState(page.toString());
   const [loading, setLoading] = useState(false);
   const pageSize = 150; // Cantidad de filas por vista
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const activeCols = allColumns.filter((c) => visibleColumns.includes(c));
+
+  // --- LÓGICA DE RESIZE ---
+  const handleResize = (colName: string, startX: number, startWidth: number) => {
+    const onMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(50, startWidth + (e.clientX - startX));
+      setColumnWidths(prev => ({ ...prev, [colName]: newWidth }));
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.body.style.cursor = "default";
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    document.body.style.cursor = "col-resize";
+  };
 
   // --- FUNCIÓN PARA PEDIR DATOS AL BACKEND ---
   const fetchPage = async () => {
@@ -71,14 +90,15 @@ export const DataTable = ({
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
       
       <div style={tableContainerStyle}>
-        <table style={tableStyle}>
+        <table style={{ ...tableStyle, tableLayout: "fixed", width: "fit-content", minWidth: "100%" }}>
           <thead>
             <tr>
               {activeCols.map((col) => {
                 const role = roles[col] || "none";
+                const width = columnWidths[col] || 150; // Ancho inicial
                 return (
-                  <th key={col} style={getHeaderStyle(role)} onClick={() => onCycleRole(col)}>
-                    <div style={headerInnerStyle}>
+                  <th key={col} style={{ ...getHeaderStyle(role), width: `${width}px`, position: 'relative' }}>
+                    <div style={headerInnerStyle} onClick={() => onCycleRole(col)}>
                       <span style={roleLabelStyle(role)}>{role.toUpperCase()}</span>
                       <div style={colNameRowStyle}>
                         <span style={colNameStyle}>{col}</span>
@@ -94,6 +114,14 @@ export const DataTable = ({
                         )}
                       </div>
                     </div>
+                    {/* TIRADOR PARA RESIZE (BARRA INVISIBLE) */}
+                    <div
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        handleResize(col, e.clientX, width);
+                      }}
+                      style={resizerStyle}
+                    />
                   </th>
                 );
               })}
@@ -103,7 +131,7 @@ export const DataTable = ({
             {rows.map((row, i) => (
               <tr key={i} style={rowStyle}>
                 {activeCols.map((col) => (
-                  <td key={col} style={tdStyle}>
+                  <td key={col} style={{ ...tdStyle, width: `${columnWidths[col] || 150}px` }}>
                     {row[col]?.toString() || "-"}
                   </td>
                 ))}
@@ -171,6 +199,17 @@ const tableStyle: React.CSSProperties = {
   width: "100%",
   borderCollapse: "collapse", // CRUCIAL: Elimina el espacio entre celdas
   tableLayout: "fixed",
+};
+
+const resizerStyle: React.CSSProperties = {
+  position: "absolute",
+  right: 0,
+  top: 0,
+  bottom: 0,
+  width: "5px",
+  cursor: "col-resize",
+  zIndex: 20,
+  transition: "background-color 0.2s",
 };
 
 const inputPageStyle: React.CSSProperties = {
