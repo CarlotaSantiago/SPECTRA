@@ -90,16 +90,25 @@ async def handle_upload(
         }
     
 @router.get("/get-page")
-def get_page(path: str, page: int = 1, size: int =10):
+def get_page(path: str, page: int = 1, size: int =150, filters: str = "{}"):
     try:
         if path.endswith(('.xlsx', '.xls')):
             data = pd.read_excel(path)
         else:
             data = pd.read_csv(path)
         
+        try:
+            filter_dict = json.loads(filters)
+            for col, value in filter_dict.items(): # <--- AQUÍ ESTABA EL ERROR
+                if value and col in data.columns:
+                    data = data[data[col].astype(str).str.contains(str(value), case=False, na=False)]
+        except Exception as f_err:
+            print(f"Error parseando filtros: {f_err}")
+            # Si los filtros fallan, seguimos adelante con la data original
+        
         n_rows = len(data)
 
-        start = (page -1)* size
+        start = (page -1) * size
         end = start + size
 
         data_page = data.iloc[start:end].replace({np.nan: None, np.inf: None, -np.inf: None})

@@ -31,7 +31,7 @@ export const DataTable = ({
   const pageSize = 150; // Cantidad de filas por vista
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const activeCols = allColumns.filter((c) => visibleColumns.includes(c));
-
+  const totalPages = Math.ceil(totalRows / pageSize);
   // --- LÓGICA DE RESIZE ---
   const handleResize = (colName: string, startX: number, startWidth: number) => {
     const onMouseMove = (e: MouseEvent) => {
@@ -52,8 +52,12 @@ export const DataTable = ({
 
   // --- FUNCIÓN PARA PEDIR DATOS AL BACKEND ---
   const fetchPage = async () => {
+    if (!filePath) return;
     setLoading(true);
     try {
+      const activeFilters = Object.fromEntries(
+        Object.entries(filters).filter(([_, v]) => v.trim() !== "")
+      );
       const filterParam = encodeURIComponent(JSON.stringify(filters));
       const response = await fetch(
         `http://localhost:8000/get-page?path=${encodeURIComponent(filePath)}&page=${page}&size=${pageSize}&filters=${filterParam}`
@@ -63,6 +67,8 @@ export const DataTable = ({
       if (result.status === "ok") {
         setRows(result.items);
         setTotalRows(result.n_rows);
+      }else{
+        setRows([]);
       }
     } catch (error) {
       console.error("Error cargando página de servidor:", error);
@@ -71,27 +77,27 @@ export const DataTable = ({
     }
   };
 
-  // 1. Sincroniza el número del input cuando la página cambia (por botones o setPage)
+ // 1. Sincroniza el input visual
   useEffect(() => {
     setInputPage(page.toString());
   }, [page]);
 
-  // 2. Si cambias el ARCHIVO o aplicas un FILTRO nuevo, volvemos a la página 1
-  // Esto evita quedarte en la página 50 de un resultado que ahora solo tiene 2 páginas
+  // 2. Un solo efecto para manejar el cambio de archivo
   useEffect(() => {
-    setPage(1);
-  }, [filePath, filters]); 
+    if (filePath) {
+      setPage(1);
+      setFilters({}); // Limpiamos filtros al cambiar de archivo
+      // No llamamos a fetchPage aquí, porque el cambio de page/filters disparará el siguiente efecto
+    }
+  }, [filePath]);
 
-  // 3. LA PETICIÓN PRINCIPAL: Se dispara cuando cambia la página o el archivo.
-  // Nota: No incluimos 'filters' aquí porque el efecto anterior ya hace el setPage(1),
-  // y ese cambio de 'page' ya disparará este efecto.
+  // 3. Efecto Maestro de Carga
   useEffect(() => {
     if (filePath) {
       fetchPage();
     }
-  }, [page, filePath]);
-
-  const totalPages = Math.ceil(totalRows / pageSize);
+  }, [page, filePath, filters]); // Se lanza cuando cualquiera cambie
+  
 
  return (
     <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, overflow: "hidden" }}>
@@ -141,8 +147,14 @@ export const DataTable = ({
                           placeholder="Filtrar..."
                           value={filters[col] || ""}
                           onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => setFilters(prev => ({ ...prev, [col]: e.target.value }))}
-                          style={filterInputStyle}
+                          onChange={(e) => {
+                          const val = e.target.value;
+                            setFilters(prev => ({ 
+                              ...prev, 
+                              [col]: val 
+                            }));
+                          }}
+                        style={filterInputStyle}
                         />
                       )}
                     </div>
