@@ -88,6 +88,32 @@ async def handle_upload(
             "status": "error",
             "message": str(e)
         }
+    
+@router.get("/get-page")
+def get_page(path: str, page: int = 1, size: int =10):
+    try:
+        if path.endswith(('.xlsx', '.xls')):
+            data = pd.read_excel(path)
+        else:
+            data = pd.read_csv(path)
+        
+        n_rows = len(data)
+
+        start = (page -1)* size
+        end = start + size
+
+        data_page = data.iloc[start:end].replace({np.nan: None, np.inf: None, -np.inf: None})
+
+        return {
+            "status": "ok",
+            "items": data_page.to_dict(orient='records'),
+            "n_rows": n_rows,
+            "page": page,
+            "size": size
+        }
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 
 def classify_target(series: pd.Series, n_rows: int) -> str:
     """
