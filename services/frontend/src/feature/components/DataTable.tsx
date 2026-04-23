@@ -26,6 +26,8 @@ export const DataTable = ({
   const [totalRows, setTotalRows] = useState(0);
   const [inputPage, setInputPage] = useState(page.toString());
   const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState<Record<string, string>>({});
+  const [activeFilterCol, setActiveFilterCol] = useState<string | null>(null);
   const pageSize = 150; // Cantidad de filas por vista
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const activeCols = allColumns.filter((c) => visibleColumns.includes(c));
@@ -52,9 +54,9 @@ export const DataTable = ({
   const fetchPage = async () => {
     setLoading(true);
     try {
-      // Llamamos al endpoint que creamos antes en FastAPI
+      const filterParam = encodeURIComponent(JSON.stringify(filters));
       const response = await fetch(
-        `http://localhost:8000/get-page?path=${encodeURIComponent(filePath)}&page=${page}&size=${pageSize}`
+        `http://localhost:8000/get-page?path=${encodeURIComponent(filePath)}&page=${page}&size=${pageSize}&filters=${filterParam}`
       );
       const result = await response.json();
       
@@ -69,20 +71,25 @@ export const DataTable = ({
     }
   };
 
+  // 1. Sincroniza el número del input cuando la página cambia (por botones o setPage)
   useEffect(() => {
     setInputPage(page.toString());
   }, [page]);
 
-  // DISPARAR LA PETICIÓN AL SERVIDOR
+  // 2. Si cambias el ARCHIVO o aplicas un FILTRO nuevo, volvemos a la página 1
+  // Esto evita quedarte en la página 50 de un resultado que ahora solo tiene 2 páginas
+  useEffect(() => {
+    setPage(1);
+  }, [filePath, filters]); 
+
+  // 3. LA PETICIÓN PRINCIPAL: Se dispara cuando cambia la página o el archivo.
+  // Nota: No incluimos 'filters' aquí porque el efecto anterior ya hace el setPage(1),
+  // y ese cambio de 'page' ya disparará este efecto.
   useEffect(() => {
     if (filePath) {
       fetchPage();
     }
-  }, [page, filePath]); // Importante: escucha ambos
-
-  useEffect(() => {
-    setPage(1);
-  }, [filePath]);
+  }, [page, filePath]);
 
   const totalPages = Math.ceil(totalRows / pageSize);
 
@@ -96,12 +103,26 @@ export const DataTable = ({
               {activeCols.map((col) => {
                 const role = roles[col] || "none";
                 const width = columnWidths[col] || 150; // Ancho inicial
+                const isFiltering = activeFilterCol == col;
                 return (
-                  <th key={col} style={{ ...getHeaderStyle(role), width: `${width}px`, position: 'relative' }}>
+                  <th key={col} style={{ ...getHeaderStyle(role, width), position: 'relative' }}>
                     <div style={headerInnerStyle} onClick={() => onCycleRole(col)}>
-                      <span style={roleLabelStyle(role)}>{role.toUpperCase()}</span>
-                      <div style={colNameRowStyle}>
-                        <span style={colNameStyle}>{col}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                         <span style={roleLabelStyle(role)}>{role.toUpperCase()}</span>
+                         
+                         {/* ICONO DE EMBUDO / FILTRO */}
+                         <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveFilterCol(isFiltering ? null : col);
+                            }}
+                            style={filterBtnStyle(!!filters[col])}
+                         >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                         </button>
+                      </div>
+                      <div style={colNameRowStyle} onClick={() => onCycleRole(col)}>
+                        <span style={{ ...colNameStyle, fontSize: "14px" }}>{col}</span>
                         {role === "feature" && (
                           <ShieldCheck
                             size={14}
@@ -113,6 +134,17 @@ export const DataTable = ({
                           />
                         )}
                       </div>
+                      {/* INPUT DE FILTRO (Aparece al pulsar el embudo) */}
+                      {isFiltering && (
+                        <input 
+                          autoFocus
+                          placeholder="Filtrar..."
+                          value={filters[col] || ""}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setFilters(prev => ({ ...prev, [col]: e.target.value }))}
+                          style={filterInputStyle}
+                        />
+                      )}
                     </div>
                     {/* TIRADOR PARA RESIZE (BARRA INVISIBLE) */}
                     <div
@@ -226,13 +258,14 @@ const inputPageStyle: React.CSSProperties = {
   transition: "border-color 0.2s"
 };
 
-const getHeaderStyle = (role: string): React.CSSProperties => ({
+const getHeaderStyle = (role: string, width: number): React.CSSProperties => ({
   position: "sticky",
   top: 0,
   zIndex: 10,
   backgroundColor: "#222",
-  padding: "12px 10px",
+  padding: "15px 12px",
   textAlign: "left",
+  width: `${width}px`,
   cursor: "pointer",
   borderBottom: `2px solid ${
     role === "feature" ? "#3b82f6" : role === "target" ? "#10b981" : "#333"
@@ -242,7 +275,6 @@ const getHeaderStyle = (role: string): React.CSSProperties => ({
   borderLeft: "none",
   borderRight: "none",
 });
-
 const headerInnerStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
@@ -317,4 +349,28 @@ const tableContainerStyle: React.CSSProperties = {
   borderRadius: "8px 8px 0 0", // Redondeado solo arriba
   border: "1px solid #252525",
   backgroundColor: "#1a1a1a",
+};
+
+const filterBtnStyle = (active: boolean): React.CSSProperties => ({
+  background: "none",
+  border: "none",
+  color: active ? "#3b82f6" : "#555", // Azul si hay texto filtrado
+  cursor: "pointer",
+  padding: "2px",
+  display: "flex",
+  alignItems: "center",
+  transition: "color 0.2s"
+});
+
+const filterInputStyle: React.CSSProperties = {
+  marginTop: "10px",
+  width: "100%",
+  backgroundColor: "#111",
+  border: "1px solid #333",
+  borderRadius: "4px",
+  padding: "4px 8px",
+  color: "#eee",
+  fontSize: "11px",
+  outline: "none",
+  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.5)"
 };
