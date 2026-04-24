@@ -136,7 +136,7 @@ const DataConfigPage = () => {
             onToggleColumn={toggleColumnVisibility}
           />
           </div>
-          <Badge text={`Filas del Dataset = ${data.n_rows}`} />
+          <Badge text={`Inferencia del Datasets= ${data.n_rows}`} />
         </div>
       </div>
 

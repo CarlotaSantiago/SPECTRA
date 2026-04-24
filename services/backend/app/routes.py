@@ -20,6 +20,7 @@ from app.services.processor import limpiar_datos
 from app.services.predict_models import predecir_final
 from app.services.build_toon import build_toon_payload
 from app.services.strarified_sampling import stratified_sample_100
+from app.services.orchestation import build_chain_strategy, compute_target_dependency_matrix
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
 
 logger = logging.getLogger(__name__)
@@ -124,21 +125,7 @@ def get_page(path: str, page: int = 1, size: int =150, filters: str = "{}"):
         return {"status": "error", "message": str(e)}
 
 
-def classify_target(series: pd.Series, n_rows: int) -> str:
-    """
-    Classify a target variable as 'classification' or 'regression' based on its unique values and ratio.
-    
-    Args:
-        series: Pandas Series representing the target variable.
-        n_rows: Total number of rows in the dataset."""
-    nunique = series.nunique()
-    ratio = nunique / n_rows
-
-    if nunique == 2 or ratio < 0.05:
-        return "classification"
-    return "regression"
-
-def classify_feature(series: pd.Series, n_rows: int) -> Dict[str, Any]:
+def classify_data(series: pd.Series, n_rows: int) -> Dict[str, Any]:
     nunique = series.nunique()
     ratio = nunique / n_rows
 
@@ -192,7 +179,7 @@ def compute_information_gain(
             X[feature] = encode_series(X[feature])
             y = encode_series(y)
 
-            if target_meta[t] == "classification":
+            if target_meta[t]['technical_level'] in [1,2]:
                 score = mutual_info_classif(X, y, discrete_features=is_discrete)[0]
             else:
                 score = mutual_info_regression(X, y, discrete_features=is_discrete)[0]
@@ -234,7 +221,7 @@ def process_state_1(data: Dossier):
         n_rows = data.n_rows
 
         target_meta = {
-            target: classify_target(df[target], n_rows)
+            target: classify_data(df[target], n_rows)
             for target in data.targets
             if target in df.columns
         }
@@ -253,7 +240,7 @@ def process_state_1(data: Dossier):
 
             series = df[col]
 
-            col_data = classify_feature(series, n_rows)
+            col_data = classify_data(series, n_rows)
 
             col_data.update({
                 "user_mandatory": col in data.mandatory,
@@ -317,15 +304,37 @@ def process_state_1(data: Dossier):
 
         toon = build_toon_payload(metadata, analysis_results, sample_df_clean)
         user_prompt = toon
-        with open("toon.txt", "w", encoding="utf-8") as f:
+        with open("toon_dossier.txt", "w", encoding="utf-8") as f:
             f.write(user_prompt)
         semantic_analysis = call_ollama(data.model, system_prompt, user_prompt)
+        with open("toon_dossier.txt", "a", encoding="utf-8") as f:
+            f.write(semantic_analysis)
+        
+        target_types = {
+            t: meta['technical_level'] for t, meta in target_meta.items()
+        }
+
+        df_for_matrix = df.sample(n=min(10000, len(df)), random_state=42) if len(df) > 0 else df
+        matriz = compute_target_dependency_matrix(df_for_matrix, data.targets, target_types)
+        orquestation = build_chain_strategy(matriz, target_types, threshold=0.15)
+
+        with open("toon_dossier.txt", "a", encoding="utf-8") as f:
+            f.write("\n\n# TARGET_DEPENDENCY_MATRIX\n")
+            f.write(matriz.to_markdown())
+            f.write("\n\n# ORCHESTRATION_PLAN\n")
+            f.write(f"strategy: {orquestation['strategy']}\n")
+            f.write(f"order: {' -> '.join(orquestation['order'])}\n")
+            print(orquestation["max_dep"])
+            f.write(f"max_dep : {orquestation['max_dep']}\n")
         return {
             "status": "ok",
             "metadata": metadata,
             "analysis": analysis_results,
-            "semantic": semantic_analysis, 
-            "sample_df": sample_df_clean
+            "semantic": semantic_analysis,
+            "orchestation": {
+                "matrix": matriz.to_dict(),
+                "plan": orquestation
+            }
         }
 
     except Exception as e:
