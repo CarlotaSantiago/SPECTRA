@@ -14,11 +14,12 @@ from sklearn.feature_selection import mutual_info_classif, mutual_info_regressio
 from sklearn.preprocessing import LabelEncoder
 from typing import Any, Dict, List
 
+from app.services.classify import classify_data, compute_information_gain, encode_series
 from app.services.device_detection import get_device
 from app.services.routeOllama import call_ollama
 from app.services.processor import limpiar_datos
 from app.services.predict_models import predecir_final
-from app.services.build_toon import build_toon_payload
+from app.services.build_toon import build_toon_payload, integrar_analisis_llm
 from app.services.strarified_sampling import stratified_sample_100
 from app.services.orchestation import build_chain_strategy, compute_target_dependency_matrix
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
@@ -124,73 +125,6 @@ def get_page(path: str, page: int = 1, size: int =150, filters: str = "{}"):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-
-def classify_data(series: pd.Series, n_rows: int) -> Dict[str, Any]:
-    nunique = series.nunique()
-    ratio = nunique / n_rows
-
-    result = {
-        "nunique": nunique,
-        "r_ratio": round(ratio, 4),
-    }
-
-    if nunique == 2:
-        result.update({"technical_level": 1, "subclass": "binary"})
-    elif is_numeric_dtype(series) and nunique > 10:
-        subclass = "continuous" if is_float_dtype(series) else "discrete"
-        result.update({"technical_level": 3, "subclass": subclass})
-    elif ratio < 0.05:
-        result.update({"technical_level": 2, "subclass": "categorical"})
-    elif ratio < 0.8:
-        subclass = "continuous" if is_float_dtype(series) else "discrete"
-        result.update({"technical_level": 3, "subclass": subclass})
-    else:
-        result.update({"technical_level": 4, "subclass": "high cardinality"})
-    
-    return result
-
-def encode_series(series: pd.Series) -> pd.Series:
-    if is_object_dtype(series) or is_string_dtype(series):
-        return pd.Series(LabelEncoder().fit_transform(series.astype(str)), index=series.index)
-    return series
-
-def compute_information_gain(
-    df: pd.DataFrame,
-    feature: str,
-    targets: list,
-    target_meta: Dict[str, str],
-    is_discrete: bool,
-    device: torch.device
-) -> Dict[str, float]:
-
-    scores = {}
-
-    for t in targets:
-        temp_df = df[[feature, t]].dropna()
-
-        if temp_df.empty:
-            scores[t] = 0.0
-            continue
-
-        X = temp_df[[feature]].copy()
-        y = temp_df[t].copy()
-
-        try:
-            X[feature] = encode_series(X[feature])
-            y = encode_series(y)
-
-            if target_meta[t]['technical_level'] in [1,2]:
-                score = mutual_info_classif(X, y, discrete_features=is_discrete)[0]
-            else:
-                score = mutual_info_regression(X, y, discrete_features=is_discrete)[0]
-
-            scores[t] = round(float(score), 4)
-
-        except Exception as e:
-            logger.warning(f"IG error: {feature} vs {t} -> {e}")
-            scores[t] = 0.0
-
-    return scores
 
 class Dossier(BaseModel):
     """Model representing a dossier with total count, 
@@ -307,9 +241,9 @@ def process_state_1(data: Dossier):
         with open("toon_dossier.txt", "w", encoding="utf-8") as f:
             f.write(user_prompt)
         semantic_analysis = call_ollama(data.model, system_prompt, user_prompt)
-        with open("toon_dossier.txt", "a", encoding="utf-8") as f:
-            f.write(semantic_analysis)
-        
+        with open("toon_dossier.json", "r", encoding="utf-8") as f:
+            contenido = json.load(f)
+        json_tecnico = integrar_analisis_llm(contenido, semantic_analysis)
         target_types = {
             t: meta['technical_level'] for t, meta in target_meta.items()
         }
@@ -317,24 +251,18 @@ def process_state_1(data: Dossier):
         df_for_matrix = df.sample(n=min(10000, len(df)), random_state=42) if len(df) > 0 else df
         matriz = compute_target_dependency_matrix(df_for_matrix, data.targets, target_types)
         orquestation = build_chain_strategy(matriz, target_types, threshold=0.15)
-
-        with open("toon_dossier.txt", "a", encoding="utf-8") as f:
-            f.write("\n\n# TARGET_DEPENDENCY_MATRIX\n")
-            f.write(matriz.to_markdown())
-            f.write("\n\n# ORCHESTRATION_PLAN\n")
-            f.write(f"strategy: {orquestation['strategy']}\n")
-            f.write(f"order: {' -> '.join(orquestation['order'])}\n")
-            print(orquestation["max_dep"])
-            f.write(f"max_dep : {orquestation['max_dep']}\n")
+        matrix_dict = matriz.to_dict(orient='index')
+        json_tecnico["target_dependency_matrix"] = matrix_dict
+        json_tecnico["orchestration_plan"] = {
+            "strategy": orquestation['strategy'],
+            "order": orquestation['order'],
+            "max_dependency": orquestation['max_dependency']
+        }
+        with open("toon_dossier.json", "w", encoding="utf-8") as f:
+            json.dump(json_tecnico, f, indent=4, ensure_ascii=False)
         return {
             "status": "ok",
-            "metadata": metadata,
-            "analysis": analysis_results,
-            "semantic": semantic_analysis,
-            "orchestation": {
-                "matrix": matriz.to_dict(),
-                "plan": orquestation
-            }
+            "data": json_tecnico
         }
 
     except Exception as e:

@@ -42,7 +42,7 @@ const DataConfigPage = () => {
 
   const { runAnalysis, loading } = useAnalysis((toonData) => {
     console.log("Resultados Etapa 1:", toonData);
-    // navigate("/semantic-analysis", { state: { toonData } });
+    navigate("/view-results", { state: { toonData } });
   });
 
   if (!data) return <div style={{ color: "white", padding: "20px" }}>No hay datos.</div>;

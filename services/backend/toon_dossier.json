@@ -1,0 +1,83 @@
+{
+    "global_metadata": {
+        "total_rows": 8219,
+        "targets": [
+            "especialidad",
+            "sala",
+            "prioridad"
+        ],
+        "sampling_strategy": "Stratified_MultiTarget_Combined"
+    },
+    "categorical_evaluation": {
+        "descrip": {
+            "technical_level": 2,
+            "ig_scores": {
+                "especialidad": 0.0,
+                "sala": 0.0,
+                "prioridad": 0.0
+            },
+            "unique_pool": [
+                "RADIOLOGIA MUSCULOESQUELETICA "
+            ],
+            "user_mandatory": false,
+            "subclass": "NOMINAL",
+            "reasoning": "The unique_pool contains only one distinct value, making it impossible to determine order or hierarchy.",
+            "mapping": null
+        },
+        "servpeti": {
+            "technical_level": 2,
+            "ig_scores": {
+                "especialidad": 0.0,
+                "sala": 0.106,
+                "prioridad": 0.0581
+            },
+            "unique_pool": [
+                "C139",
+                "C004",
+                "C142",
+                "C105",
+                "CGDE",
+                "C355",
+                "C001",
+                "C156",
+                "C123",
+                "C320",
+                "C308",
+                "TRAE",
+                "C005",
+                "C003",
+                "C008"
+            ],
+            "user_mandatory": false,
+            "subclass": "NOMINAL",
+            "reasoning": "The unique_pool contains distinct codes without any observable order or hierarchy in their naming conventions.",
+            "mapping": null
+        }
+    },
+    "target_dependency_matrix": {
+        "especialidad": {
+            "especialidad": 1.0,
+            "sala": 0.0,
+            "prioridad": 0.0
+        },
+        "sala": {
+            "especialidad": 0.0,
+            "sala": 1.0,
+            "prioridad": 0.0965
+        },
+        "prioridad": {
+            "especialidad": 0.0,
+            "sala": 0.0965,
+            "prioridad": 1.0
+        }
+    },
+    "orchestration_plan": {
+        "strategy": "MultiOutput",
+        "order": [
+            "especialidad",
+            "sala",
+            "prioridad"
+        ],
+        "max_dependency": "Baja dependencia detectada (max: 0.0965)"
+    }
+}

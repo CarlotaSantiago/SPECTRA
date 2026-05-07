@@ -72,7 +72,7 @@ export const ModelPicker = ({
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // FILTRO DEL PROFE: Quitamos modelos que contienen "coder"
-  const filteredModels = allModels.filter(m => !m.toLowerCase().includes("coder"));
+  const filteredModels = allModels;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

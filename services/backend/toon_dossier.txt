@@ -1,7 +1,7 @@
 # GLOBAL_METADATA
 total_rows: 8219
 targets: ['especialidad', 'sala', 'prioridad']
-sampling_strategy: Stratified_Proportional
+sampling_strategy: Stratified_MultiTarget_Combined
 
 # REPRESENTATIVE_SAMPLE_100
 | especialidad   | sala   | prioridad   | descrip                       | servpeti   |
@@ -120,40 +120,3 @@ servpeti:
   unique_pool: ['C139', 'C004', 'C142', 'C105', 'CGDE', 'C355', 'C001', 'C156', 'C123', 'C320', 'C308', 'TRAE', 'C005', 'C003', 'C008']
   user_mandatory: False
 
-# SEMANTIC_CLASSIFICATION_RESULTS
-feature_name: descrip
-subclass: NOMINAL
-mapping: null
-reasoning: one sentence.
-
-feature_name: servpeti
-subclass: NOMINAL
-mapping: null
-reasoning: one sentence.
-
-feature_name: especialidad
-subclass: NOMINAL
-mapping: null
-reasoning: one sentence.
-
-feature_name: sala
-subclass: NOMINAL
-mapping: null
-reasoning: one sentence.
-
-feature_name: prioridad
-subclass: ORDINAL
-mapping: {value1: 0, value2: 1, value3: 2}
-reasoning: one sentence.
-
-# TARGET_DEPENDENCY_MATRIX
-|              |   especialidad |   sala |   prioridad |
-|:-------------|---------------:|-------:|------------:|
-| especialidad |              1 | 0      |      0      |
-| sala         |              0 | 1      |      0.4234 |
-| prioridad    |              0 | 0.4234 |      1      |
-
-# ORCHESTRATION_PLAN
-strategy: ClassifierChain
-order: sala -> prioridad -> especialidad
-max_dep : 0.4234
