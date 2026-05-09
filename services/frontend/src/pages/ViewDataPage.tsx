@@ -24,6 +24,14 @@ const ViewDataPage = () => {
 
   // --- MANEJADORES DE EDICIÓN ---
 
+  const TECHNICAL_LEVEL_MAP: Record<number, string> = {
+  0: "Texto / NLP", // Añadido por si acaso
+  1: "Binario",
+  2: "Categórico",
+  3: "Numérico",
+  4: "Alta Cardinalidad"
+};
+
   const handleEditFeature = (featureName: string, field: string, value: string) => {
     setDossier((prev: any) => ({
       ...prev,
@@ -95,7 +103,6 @@ const ViewDataPage = () => {
           <section style={cardStyle}>
             <h3 style={cardTitle}><Activity size={16}/> Metadatos</h3>
             <div style={infoRow}><span>Filas:</span> <strong>{dossier?.data?.global_metadata?.total_rows}</strong></div>
-            <div style={infoRow}><span>Filas:</span> <strong>{dossier?.data?.global_metadata?.total_rows}</strong></div>
             <div style={infoRow}><span>Muestra:</span> <strong>{dossier?.data?.global_metadata?.sampling_strategy}</strong></div>
           </section>
 
@@ -166,7 +173,8 @@ const ViewDataPage = () => {
         </div>
 
         <div style={mainPanelStyle}>
-          <h2 style={sectionTitle}><Brain size={20}/> Análisis de Variables</h2>
+          {/* SECCIÓN 1: VARIABLES CATEGÓRICAS (EDITABLES) */}
+          <h2 style={sectionTitle}><Brain size={20}/> Análisis Semántico (Editable)</h2>
           <div style={gridFeatures}>
             {Object.keys(dossier?.data?.categorical_evaluation || {}).map((key) => {
               const feat = dossier.data.categorical_evaluation[key];
@@ -174,20 +182,78 @@ const ViewDataPage = () => {
                 <div key={key} style={featureCard}>
                   <div style={featureHeader}>
                     <span style={featureName}>{key}</span>
-                    <select value={feat.subclass} onChange={(e) => handleEditFeature(key, 'subclass', e.target.value)} style={selectStyle}>
+                    <select 
+                      value={feat.subclass} 
+                      onChange={(e) => handleEditFeature(key, 'subclass', e.target.value)} 
+                      style={selectStyle}
+                    >
                       <option value="NOMINAL">NOMINAL</option>
                       <option value="ORDINAL">ORDINAL</option>
                       <option value="BINARY">BINARY</option>
+                      <option value="TEXT_NLP">TEXT_NLP</option>
                     </select>
                   </div>
-                  <label style={labelStyle}>Razonamiento:</label>
-                  <textarea style={textAreaStyle} value={feat.reasoning || ""} onChange={(e) => handleEditFeature(key, 'reasoning', e.target.value)} />
-                    <div style={infoRow}><span>tecnical_level:</span> <strong>{feat.technical_level}</strong></div>
-            
+                  <label style={labelStyle}>Razonamiento Semántico:</label>
+                  <textarea 
+                    style={textAreaStyle} 
+                    value={feat.reasoning || ""} 
+                    onChange={(e) => handleEditFeature(key, 'reasoning', e.target.value)} 
+                  />
+                  <div style={infoRow}>
+                    <span>Tipo Técnico:</span> 
+                    <strong style={{color: '#648f8c'}}>
+                      {TECHNICAL_LEVEL_MAP[feat.technical_level] || "Desconocido"}
+                    </strong>
+                  </div>
                 </div>
               );
             })}
           </div>
+
+          {/* SECCIÓN 2: VARIABLES CLASIFICADAS (SÓLO LECTURA) */}
+          {dossier?.data?.classified_evaluation && Object.keys(dossier.data.classified_evaluation).length > 0 && (
+            <>
+              <h2 style={{...sectionTitle, marginTop: '40px'}}><Activity size={20}/> Análisis Técnico (Solo Lectura)</h2>
+              <div style={gridFeatures}>
+                {Object.keys(dossier.data.classified_evaluation).map((key) => {
+                  const feat = dossier.data.classified_evaluation[key];
+                  return (
+                    <div key={key} style={{...featureCard, opacity: 0.9, borderStyle: 'dashed'}}>
+                      <div style={featureHeader}>
+                        <span style={featureName}>{key}</span>
+                        <span style={badge}>{feat.subclass || "TÉCNICO"}</span>
+                      </div>
+                      
+                      <div style={{marginTop: '10px'}}>
+                        <div style={infoRow}>
+                          <span>Tipo de Dato:</span> 
+                          <strong style={{color: '#648f8c'}}>
+                            {TECHNICAL_LEVEL_MAP[feat.technical_level] || feat.technical_level}
+                          </strong>
+                        </div>
+                        <div style={infoRow}>
+                          <span>Obligatorio:</span> 
+                          <strong>{feat.user_mandatory ? "SÍ" : "NO"}</strong>
+                        </div>
+                      </div>
+
+                      {/* Pool de valores simplificado */}
+                      <div style={{marginTop: '5px'}}>
+                        <label style={{...labelStyle, fontSize: '10px'}}>Muestra de valores:</label>
+                        <div style={{display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '5px'}}>
+                          {feat.unique_pool?.slice(0, 3).map((v: any, idx: number) => (
+                            <span key={idx} style={{fontSize: '10px', color: '#666', backgroundColor: '#121212', padding: '2px 6px', borderRadius: '4px'}}>
+                              {String(v)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

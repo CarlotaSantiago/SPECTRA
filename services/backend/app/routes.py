@@ -161,7 +161,9 @@ def process_state_1(data: Dossier):
         }
         columnas = list(data.targets)
         analysis_results = {}
-
+        dossier = {
+            "classified_evaluation": {}
+        }
         for col in data.features:
             if col not in df.columns:
                 logger.warning(f"Column not found: {col}")
@@ -195,6 +197,8 @@ def process_state_1(data: Dossier):
                 device=device
             )
             analysis_results[col] = col_data
+            if col_data["technical_level"] in [1, 3, 4]:
+                dossier["classified_evaluation"][col] = col_data
 
         sample_df = stratified_sample_100(df[columnas], data.targets)
         sample_df_clean = sample_df.astype(object).fillna("")
@@ -244,6 +248,7 @@ def process_state_1(data: Dossier):
         with open("toon_dossier.json", "r", encoding="utf-8") as f:
             contenido = json.load(f)
         json_tecnico = integrar_analisis_llm(contenido, semantic_analysis)
+        json_tecnico.update(dossier)
         target_types = {
             t: meta['technical_level'] for t, meta in target_meta.items()
         }

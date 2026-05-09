@@ -2,7 +2,6 @@
     "global_metadata": {
         "total_rows": 8219,
         "targets": [
-            "especialidad",
             "sala",
             "prioridad"
         ],
@@ -12,7 +11,6 @@
         "descrip": {
             "technical_level": 2,
             "ig_scores": {
-                "especialidad": 0.0,
                 "sala": 0.0,
                 "prioridad": 0.0
             },
@@ -27,7 +25,6 @@
         "servpeti": {
             "technical_level": 2,
             "ig_scores": {
-                "especialidad": 0.0,
                 "sala": 0.106,
                 "prioridad": 0.0581
             },
@@ -50,23 +47,117 @@
             ],
             "user_mandatory": false,
             "subclass": "NOMINAL",
-            "reasoning": "The unique_pool contains distinct codes without any observable order or hierarchy in their naming conventions.",
+            "reasoning": "The unique_pool contains distinct service codes with no observable order or hierarchy in the representative sample.",
             "mapping": null
         }
     },
-    "target_dependency_matrix": {
-        "especialidad": {
-            "especialidad": 1.0,
-            "sala": 0.0,
-            "prioridad": 0.0
+    "classified_evaluation": {
+        "edad": {
+            "nunique": 85,
+            "r_ratio": 0.0103,
+            "technical_level": 3,
+            "subclass": "discrete",
+            "user_mandatory": true,
+            "unique_pool": [
+                "79",
+                "78",
+                "70",
+                "64",
+                "77",
+                "65",
+                "75",
+                "66",
+                "59",
+                "85",
+                "83",
+                "54",
+                "53",
+                "92",
+                "86",
+                "69",
+                "74",
+                "47",
+                "41",
+                "76"
+            ],
+            "information_gain": {
+                "sala": 0.02,
+                "prioridad": 0.2386
+            }
         },
+        "datosclini_limpio": {
+            "nunique": 7041,
+            "r_ratio": 0.8567,
+            "technical_level": 4,
+            "subclass": "high cardinality",
+            "user_mandatory": false,
+            "unique_pool": [
+                "",
+                "t regio lateral cuello",
+                "nodulo musculo externo acleido mastoideo insercion izquierdo bordes lisos sin fijacion planos internos movible no doloroso 5 centimetros aproximado",
+                "tumefaccion region pie d cicatriz hallux valgus blanda movil dolorosa",
+                "remitida lipoma cara interna muslo izquierdo impresiona acumulo grasa normal autentico lipoma",
+                "hinchazon tercio distal pierna izquierda bultoma estudio",
+                "bultoma movil 15 centimetros diametro nivel supraclavicular izquierdo",
+                "varon 72 años acude dolor region inguinal region correspondiente antigua cicatriz niega bulto bolsa incremente esfuerzos valsabas no cambios coloracion piel exploracion cicatriz region inguinal no palpo hernias no alteraciones escroto ni adenopatias",
+                "bultoma cara muslo antecedente traumatico 2 meses",
+                "muller 84 ano traumatismo accidental hai 2 semanas golpe mid nota tumoracion superior muslo dereito doloroso palpacion non eritema non calor local",
+                "paciente 81 años acude tumoracion flexura codo derecho consistencia elastica no refiere sindrome constitucional asociado",
+                "bultoma apendice xifoides crece ultimos meses radiografia sin lesiones oseas impresiona lipoma solicito ecografia",
+                "paciente presenta dolor nivel dorsal derecho inferior sensacion bultoma tira examen fisico dolor palpacion espacio intercostal derecho nivel reborde costal no palpo bultoma compañero ido urgencias realizo radiografia normal",
+                "tumor volar radial pulso dereito",
+                "presencial presenta nivel axila izquierda lesiones nodular bilobulada superficial consistencia grasa profunda caracteristica 05cm impresiones quiste sebaceo lipomas ecografia imagenes compatibles tejido graso sin vascularizacion 2cm diametro caracteristica 04cm antecedentes personales mvp x fa arritmia completa fibrilacion auricular pcr no adenopatias niveles exfumador 17 años i posibles quistes sebaceos sin signos inflamatorios p solicito analitica serologia solicito ecografia reglada nodulos axilares izquierdo",
+                "bultoma antebrazo nivel codo",
+                "tumoracion supraclavicular izquierda ocasiona molestias puncion aspiracion aguja fina insuficiente diagnostico",
+                "lesion nodular gluteoraiz muslo derecha años evolucion",
+                "coleccion liquida cara posterior antebrazo izquierdo mes no doloroso no eritema no calor impresiona liquido sinovial extravasado no recuerda traumatismo ni sobreesfuerzo previo no varia antiinflamatorios no esteroideos frio ruego ecografia partes blandas dicha region antebrazo aproximar diagnostico gracia saludo",
+                "mujer 46 años acude tumoracion escapular años evolucion realizada puncion aspiracion aguja fina 2017 antecedentes personales lipoma aumentado tamaño año descrita 2017 4 centimetros actualmente 8x8 centimetros impresiona subcutanea no adherida planos profundos introduce axila lateral"
+            ],
+            "information_gain": {
+                "sala": 0.2983,
+                "prioridad": 0.1466
+            }
+        },
+        "sospechadiag_limpio": {
+            "nunique": 4139,
+            "r_ratio": 0.5036,
+            "technical_level": 3,
+            "subclass": "discrete",
+            "user_mandatory": false,
+            "unique_pool": [
+                "",
+                "adenopatia nodulo tiroideo",
+                "impresion diagnostica lipoma",
+                "descartar etiologia patologia subcutanea",
+                "valorar lipoma",
+                "valoracion ultimato",
+                "patologia ganglionar",
+                "descartar alteraciones pared abdominal",
+                "bultoma cara muslo antecedente traumatico 2 meses",
+                "compatible hematoma encapsulado descartar outro tipo patoloxia",
+                "filiacion tumoracion",
+                "lipoma",
+                "solicito descartar patologia",
+                "idem",
+                "descartar adenopatias",
+                "control evolutivo",
+                "quiste lipoma",
+                "quiste sinovial antebrazo izquierdo",
+                "lipoma valorar relacion estructuras muscular vasos axilares",
+                "tumoracion indeterminada"
+            ],
+            "information_gain": {
+                "sala": 0.2782,
+                "prioridad": 0.1157
+            }
+        }
+    },
+    "target_dependency_matrix": {
         "sala": {
-            "especialidad": 0.0,
             "sala": 1.0,
             "prioridad": 0.0965
         },
         "prioridad": {
-            "especialidad": 0.0,
             "sala": 0.0965,
             "prioridad": 1.0
         }
@@ -74,7 +165,6 @@
     "orchestration_plan": {
         "strategy": "MultiOutput",
         "order": [
-            "especialidad",
             "sala",
             "prioridad"
         ],

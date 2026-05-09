@@ -1,122 +1,122 @@
 # GLOBAL_METADATA
 total_rows: 8219
-targets: ['especialidad', 'sala', 'prioridad']
+targets: ['sala', 'prioridad']
 sampling_strategy: Stratified_MultiTarget_Combined
 
 # REPRESENTATIVE_SAMPLE_100
-| especialidad   | sala   | prioridad   | descrip                       | servpeti   |
-|:---------------|:-------|:------------|:------------------------------|:-----------|
-| MSK            | H      | A           | RADIOLOGIA MUSCULOESQUELETICA | C007       |
-| MSK            | H      | A           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | H      | A           | RADIOLOGIA MUSCULOESQUELETICA | C319       |
-| MSK            | H      | A           | RADIOLOGIA MUSCULOESQUELETICA | ANRD       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C003       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | ANRD       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C001       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C319       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | MIRE       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C118       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C009       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C001       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C008       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C002       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C319       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | REHE       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C005       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C134       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C142       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C354       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C003       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C141       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C002       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C131       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C118       |
-| MSK            | H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C319       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C123       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | REUE       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C008       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C303       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C173       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C131       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C150       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C113       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C170       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C132       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C113       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C009       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | DIGK       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDC       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C320       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C166       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C174       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C009       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C355       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C150       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C009       |
-| MSK            | NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | UROE       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C005       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C001       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C109       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C320       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C320       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C181       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C005       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C003       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | B127       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C126       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C181       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C002       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C008       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C156       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C168       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | REUE       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C003       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C001       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C180       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C001       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C118       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C168       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
-| MSK            | NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
-| MSK            | NH     | C           | RADIOLOGIA MUSCULOESQUELETICA | C320       |
-| MSK            | NH     | C           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
-| MSK            | NH     | C           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
-| MSK            | NH     | C           | RADIOLOGIA MUSCULOESQUELETICA | C136       |
-| MSK            | NH     | C           | RADIOLOGIA MUSCULOESQUELETICA | REUE       |
+| sala   | prioridad   | descrip                       | servpeti   |
+|:-------|:------------|:------------------------------|:-----------|
+| H      | A           | RADIOLOGIA MUSCULOESQUELETICA | C007       |
+| H      | A           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| H      | A           | RADIOLOGIA MUSCULOESQUELETICA | C319       |
+| H      | A           | RADIOLOGIA MUSCULOESQUELETICA | ANRD       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C003       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | ANRD       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C001       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C319       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | MIRE       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C118       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C009       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C001       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C008       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C002       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C319       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | REHE       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C005       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C134       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C142       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C354       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C003       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C141       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C002       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C131       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C118       |
+| H      | B           | RADIOLOGIA MUSCULOESQUELETICA | C319       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C123       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | REUE       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C008       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C303       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C173       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C131       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C150       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C113       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C170       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C132       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| H      | C           | RADIOLOGIA MUSCULOESQUELETICA | C113       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C009       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | DIGK       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDC       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C320       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C166       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C174       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C009       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C355       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C150       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | C009       |
+| NH     | A           | RADIOLOGIA MUSCULOESQUELETICA | UROE       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C005       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C001       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C109       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C320       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C320       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C181       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C005       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C003       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | B127       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C126       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C181       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C002       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C008       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C156       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C168       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | REUE       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C003       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C001       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C180       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C001       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C118       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C168       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | C004       |
+| NH     | B           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
+| NH     | C           | RADIOLOGIA MUSCULOESQUELETICA | C320       |
+| NH     | C           | RADIOLOGIA MUSCULOESQUELETICA | TRAE       |
+| NH     | C           | RADIOLOGIA MUSCULOESQUELETICA | CGDE       |
+| NH     | C           | RADIOLOGIA MUSCULOESQUELETICA | C136       |
+| NH     | C           | RADIOLOGIA MUSCULOESQUELETICA | REUE       |
 
 # CATEGORICAL_SUBCLASS_EVALUATION
 descrip:
   technical_level: 2
-  ig_scores: {'especialidad': 0.0, 'sala': 0.0, 'prioridad': 0.0}
+  ig_scores: {'sala': 0.0, 'prioridad': 0.0}
   unique_pool: ['RADIOLOGIA MUSCULOESQUELETICA ']
   user_mandatory: False
 
 servpeti:
   technical_level: 2
-  ig_scores: {'especialidad': 0.0, 'sala': 0.106, 'prioridad': 0.0581}
+  ig_scores: {'sala': 0.106, 'prioridad': 0.0581}
   unique_pool: ['C139', 'C004', 'C142', 'C105', 'CGDE', 'C355', 'C001', 'C156', 'C123', 'C320', 'C308', 'TRAE', 'C005', 'C003', 'C008']
   user_mandatory: False
 
