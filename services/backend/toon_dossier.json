@@ -1,6 +1,7 @@
 {
     "global_metadata": {
         "total_rows": 8219,
+        "features": 5,
         "targets": [
             "sala",
             "prioridad"
@@ -19,8 +20,8 @@
             ],
             "user_mandatory": false,
             "subclass": "NOMINAL",
-            "reasoning": "The unique_pool contains only one distinct value, making it impossible to determine order or hierarchy.",
-            "mapping": null
+            "mapping": null,
+            "reasoning": "one sentence."
         },
         "servpeti": {
             "technical_level": 2,
@@ -47,8 +48,22 @@
             ],
             "user_mandatory": false,
             "subclass": "NOMINAL",
-            "reasoning": "The unique_pool contains distinct service codes with no observable order or hierarchy in the representative sample.",
-            "mapping": null
+            "mapping": null,
+            "reasoning": "one sentence."
+        }
+    },
+    "targets_evaluation": {
+        "sala": {
+            "technical_level": 1,
+            "subclass": "NOMINAL",
+            "mapping": null,
+            "reasoning": "one sentence."
+        },
+        "prioridad": {
+            "technical_level": 2,
+            "subclass": "ORDINAL",
+            "mapping": "{A: 0, B: 1, C: 2}",
+            "reasoning": "one sentence."
         }
     },
     "classified_evaluation": {
@@ -82,7 +97,7 @@
             ],
             "information_gain": {
                 "sala": 0.02,
-                "prioridad": 0.2386
+                "prioridad": 0.244
             }
         },
         "datosclini_limpio": {
@@ -114,8 +129,8 @@
                 "mujer 46 años acude tumoracion escapular años evolucion realizada puncion aspiracion aguja fina 2017 antecedentes personales lipoma aumentado tamaño año descrita 2017 4 centimetros actualmente 8x8 centimetros impresiona subcutanea no adherida planos profundos introduce axila lateral"
             ],
             "information_gain": {
-                "sala": 0.2983,
-                "prioridad": 0.1466
+                "sala": 0.2979,
+                "prioridad": 0.1421
             }
         },
         "sospechadiag_limpio": {
@@ -147,18 +162,18 @@
                 "tumoracion indeterminada"
             ],
             "information_gain": {
-                "sala": 0.2782,
-                "prioridad": 0.1157
+                "sala": 0.2775,
+                "prioridad": 0.1134
             }
         }
     },
     "target_dependency_matrix": {
         "sala": {
             "sala": 1.0,
-            "prioridad": 0.0965
+            "prioridad": 0.0895
         },
         "prioridad": {
-            "sala": 0.0965,
+            "sala": 0.0905,
             "prioridad": 1.0
         }
     },
@@ -168,6 +183,6 @@
             "sala",
             "prioridad"
         ],
-        "max_dependency": "Baja dependencia detectada (max: 0.0965)"
+        "max_dependency": "Baja dependencia detectada (max: 0.0905)"
     }
 }

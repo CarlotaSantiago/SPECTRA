@@ -210,7 +210,7 @@ def process_state_1(data: Dossier):
         print("Modelo: " + data.model)
         system_prompt = """/nothink
             You are a Data Science Assistant specialized in semantic feature classification.
-            Your ONLY task: classify each feature in CATEGORICAL_SUBCLASS_EVALUATION as NOMINAL or ORDINAL.
+            Your ONLY task: classify each feature in CATEGORICAL_SUBCLASS_EVALUATION and each target in TARGETS_SUBCLASS_EVALUATION as NOMINAL or ORDINAL.
 
             OUTPUT FORMAT — reproduce this structure exactly, one entry per feature:
             # SEMANTIC_CLASSIFICATION_RESULTS
@@ -224,6 +224,17 @@ def process_state_1(data: Dossier):
             mapping: {value1: 0, value2: 1, value3: 2}
             reasoning: one sentence.
 
+            # TARGETS_SUBCLASS_EVALUATION
+            target_name:
+            subclass: NOMINAL
+            mapping: null
+            reasoning: one sentence.
+
+            target_name:
+            subclass: ORDINAL
+            mapping: {value1: 0, value2: 1, value3: 2}
+            reasoning: one sentence.
+
             CLASSIFICATION RULES:
             1. ORDINAL: values have a natural, unambiguous order or hierarchy (e.g. Junior < Senior, Baja < Alta).
             2. NOMINAL: values are distinct categories with no inherent order (e.g. departments, service codes).
@@ -233,14 +244,14 @@ def process_state_1(data: Dossier):
             6. For NOMINAL, mapping must be null.
 
             STRICT OUTPUT RULES:
-            - Output ONLY the # SEMANTIC_CLASSIFICATION_RESULTS block.
+            - Output ONLY the # SEMANTIC_CLASSIFICATION_RESULTS and # TARGETS_SUBCLASS_EVALUATION blocks.
             - No explanations outside the reasoning field.
             - No recommendations, no observations, no markdown headers beyond the block.
             - No bullet points, no numbered lists.
-            - One entry per feature, in the same order as CATEGORICAL_SUBCLASS_EVALUATION.
+            - One entry per feature and target, in the same order as CATEGORICAL_SUBCLASS_EVALUATION and TARGETS_SUBCLASS_EVALUATION.
             """
 
-        toon = build_toon_payload(metadata, analysis_results, sample_df_clean)
+        toon = build_toon_payload(metadata, analysis_results, sample_df_clean, data.features, target_meta)
         user_prompt = toon
         with open("toon_dossier.txt", "w", encoding="utf-8") as f:
             f.write(user_prompt)
@@ -249,13 +260,10 @@ def process_state_1(data: Dossier):
             contenido = json.load(f)
         json_tecnico = integrar_analisis_llm(contenido, semantic_analysis)
         json_tecnico.update(dossier)
-        target_types = {
-            t: meta['technical_level'] for t, meta in target_meta.items()
-        }
 
         df_for_matrix = df.sample(n=min(10000, len(df)), random_state=42) if len(df) > 0 else df
-        matriz = compute_target_dependency_matrix(df_for_matrix, data.targets, target_types)
-        orquestation = build_chain_strategy(matriz, target_types, threshold=0.15)
+        matriz = compute_target_dependency_matrix(df_for_matrix, data.targets, json_tecnico["targets_evaluation"])
+        orquestation = build_chain_strategy(matriz, json_tecnico["targets_evaluation"], threshold=0.15)
         matrix_dict = matriz.to_dict(orient='index')
         json_tecnico["target_dependency_matrix"] = matrix_dict
         json_tecnico["orchestration_plan"] = {
@@ -279,6 +287,21 @@ def process_state_1(data: Dossier):
 
 
 
+@router.post("/process-state2")
+def process_state_2(data: Dict[str, Any]):
+    try:
+        # Aquí procesaríamos la información de json_tecnico para entrenar modelos, etc.
+        # Por ahora, solo devolvemos lo que recibimos para verificar la conexión.
+        return {
+            "status": "ok",
+            "received_data": data
+        }
+    except Exception as e:
+        logger.error(f"process_state_2 failed: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 class PredictionBlock(BaseModel):
     """
     Configuration block for a prediction section containing model selection and files to process.

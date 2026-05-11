@@ -120,3 +120,8 @@ servpeti:
   unique_pool: ['C139', 'C004', 'C142', 'C105', 'CGDE', 'C355', 'C001', 'C156', 'C123', 'C320', 'C308', 'TRAE', 'C005', 'C003', 'C008']
   user_mandatory: False
 
+# TARGETS_SUBCLASS_EVALUATION
+sala:
+  technical_level: 1
+prioridad:
+  technical_level: 2

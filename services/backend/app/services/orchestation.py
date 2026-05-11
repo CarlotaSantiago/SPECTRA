@@ -5,28 +5,22 @@ import itertools
 from app.services.classify import classify_data, compute_information_gain, compute_information_gain_targets, encode_series
 
 def compute_target_dependency_matrix(df, targets, col_types):
-    # Crear matriz vacía de tamaño [targets x targets], inicializada a 0
-    # Usamos un DataFrame para que sea visualmente claro y fácil de indexar
     matrix = pd.DataFrame(0.0, index=targets, columns=targets)
 
     # PARA CADA par (t1, t2) en todas las combinaciones posibles de targets
     for t1, t2 in itertools.permutations(targets, 2):
         
-        # NUEVO ENFOQUE: USAR INFORMATION GAIN NORMALIZADO
+        # NUEVO ENFOQUE: USAR INFORMATION GAIN
         temp_df = df[[t1, t2]].dropna()
         if temp_df.empty:
             continue
 
         t1_discrete = col_types.get(t1) in [1, 2]
-        t2_discrete = col_types.get(t2) in [1, 2]
 
         try:
-            if t2_discrete:
-                # t1 -> t2 (t2 es el target)
-                score = compute_information_gain_targets(df, t1, t2, col_types, t1_discrete, device=None)
-            else:
-                # t1 -> t2 (t2 es el target)
-                score = compute_information_gain_targets(df, t1, t2, col_types, t1_discrete, device=None)
+
+            score = compute_information_gain_targets(df, t1, t2, col_types, t1_discrete, device=None)
+            print(f"Información mutua entre {t1} y {t2}: {score}")
             matrix.loc[t1, t2] = round(score, 4)
 
         except Exception as e:

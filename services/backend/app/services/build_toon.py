@@ -2,7 +2,7 @@
 import re
 import json
 
-def build_toon_payload(metadata, analysis_results, sample_df):
+def build_toon_payload(metadata, analysis_results, sample_df, features, target_meta):
     # 1. Metadatos Globales
     toon_str = "# GLOBAL_METADATA\n"
     toon_str += f"total_rows: {metadata['n_rows']}\n"
@@ -32,9 +32,18 @@ def build_toon_payload(metadata, analysis_results, sample_df):
             toon_str += f"  unique_pool: {info['unique_pool'][:15]}\n"
             toon_str += f"  user_mandatory: {info.get('user_mandatory', False)}\n\n"
     
+    toon_str += "# TARGETS_SUBCLASS_EVALUATION\n"
+    targ = {}
+    for targ, info in target_meta.items():
+        # Solo enviamos las que el LLM debe clasificar (Niveles 1 y 2)
+        if info.get("technical_level") in [1, 2]:
+            toon_str += f"{targ}:\n"
+            toon_str += f"  technical_level: {info['technical_level']}\n"
+
     dossier = {
         "global_metadata": {
             "total_rows": metadata['n_rows'],
+            "features": len(features),
             "targets": targets_list,
             "sampling_strategy": "Stratified_MultiTarget_Combined" if len(targets_list) > 1 else "Stratified_SingleTarget"
         },
@@ -45,6 +54,11 @@ def build_toon_payload(metadata, analysis_results, sample_df):
                 "unique_pool": info['unique_pool'][:15],
                 "user_mandatory": info.get('user_mandatory', False)
             } for col, info in analysis_results.items() if info.get("technical_level") in [1, 2]
+        },
+        "targets_evaluation": {
+            targ: {
+                "technical_level": info['technical_level'],
+            } for targ, info in target_meta.items() if info.get("technical_level") in [1, 2]
         }
     }
 
@@ -54,27 +68,40 @@ def build_toon_payload(metadata, analysis_results, sample_df):
     return toon_str
 
 
+import re
+import json
+
 def integrar_analisis_llm(json_tecnico, respuesta_llm):
     """
-    Extrae subclass, mapping y reasoning del texto del LLM 
-    y los inyecta en el JSON de la Etapa 1.
+    Extrae subclass, mapping y reasoning inyectándolos en las secciones 
+    correspondientes (features y targets) del JSON técnico.
     """
-    # 1. Buscamos cada bloque de variable en el texto del LLM
-    # Usamos un patrón que capture el nombre y sus atributos
-    patron = r"feature_name:\s*(\w+)\s*subclass:\s*(\w+)\s*mapping:\s*([^\n]+)\s*reasoning:\s*([^\n]+)"
+    
+    # 1. Patrón mejorado para capturar bloques de cualquier tipo (feature o target)
+    # Este patrón busca el nombre seguido de sus 3 atributos clave
+    patron = r"(\w+):\s*subclass:\s*(\w+)\s*mapping:\s*([^\n]+)\s*reasoning:\s*([^\n]+)"
     
     hallazgos = re.findall(patron, respuesta_llm)
     
     for nombre, subclass, mapping, reasoning in hallazgos:
-        # 2. Si la variable existe en nuestro JSON técnico, la actualizamos
-        if nombre in json_tecnico["categorical_evaluation"]:
-            target = json_tecnico["categorical_evaluation"][nombre]
-            
-            target["subclass"] = subclass.strip()
-            target["reasoning"] = reasoning.strip()
-            
-            # Manejo del mapping: si es 'null' en texto, poner None en JSON
-            val_mapping = mapping.strip()
-            target["mapping"] = None if val_mapping.lower() == "null" else val_mapping
+        # Limpieza de valores
+        subclass_clean = subclass.strip()
+        reasoning_clean = reasoning.strip()
+        val_mapping = mapping.strip()
+        final_mapping = None if val_mapping.lower() == "null" else val_mapping
+
+        # 2. Intentamos inyectar en CATEGORICAL_EVALUATION (Features)
+        if nombre in json_tecnico.get("categorical_evaluation", {}):
+            item = json_tecnico["categorical_evaluation"][nombre]
+            item["subclass"] = subclass_clean
+            item["mapping"] = final_mapping
+            item["reasoning"] = reasoning_clean
+
+        # 3. Intentamos inyectar en TARGETS_EVALUATION (Targets)
+        elif nombre in json_tecnico.get("targets_evaluation", {}):
+            item = json_tecnico["targets_evaluation"][nombre]
+            item["subclass"] = subclass_clean
+            item["mapping"] = final_mapping
+            item["reasoning"] = reasoning_clean
 
     return json_tecnico

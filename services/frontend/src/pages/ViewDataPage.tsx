@@ -32,6 +32,47 @@ const ViewDataPage = () => {
   4: "Alta Cardinalidad"
 };
 
+  // Función para convertir "{A: 0, B: 1}" en [{key: "A", val: 0}, {key: "B", val: 1}]
+  const parseMapping = (mappingStr: any) => {
+    if (!mappingStr || typeof mappingStr !== "string") return [];
+    try {
+      // Limpiamos los caracteres de objeto y dividimos por comas
+      const cleanStr = mappingStr.replace(/[{}]/g, "");
+      return cleanStr.split(",").map(pair => {
+        const [key, val] = pair.split(":").map(s => s.trim());
+        return { key, val: parseInt(val) };
+      }).sort((a, b) => a.val - b.val); // Ordenar por el valor numérico
+    } catch (e) {
+      return [];
+    }
+  };
+  const handleUpdateMapping = (featureName: string, keyToUpdate: string, newVal: number) => {
+  const feat = dossier.data.targets_evaluation[featureName] || dossier.data.categorical_evaluation[featureName];
+  const currentMapping = parseMapping(feat.mapping);
+  
+  // Creamos el nuevo objeto actualizado
+  const newMappingObj = currentMapping.reduce((acc: any, item) => {
+    acc[item.key] = item.key === keyToUpdate ? newVal : item.val;
+    return acc;
+  }, {});
+
+  // Lo convertimos de nuevo a string formato "{A: 0, B: 1}"
+  const mappingString = `{${Object.entries(newMappingObj).map(([k, v]) => `${k}: ${v}`).join(", ")}}`;
+
+  // Determinamos si es target o feature para actualizar el estado
+  const section = dossier.data.targets_evaluation[featureName] ? 'targets_evaluation' : 'categorical_evaluation';
+
+  setDossier((prev: any) => ({
+    ...prev,
+    data: {
+      ...prev.data,
+      [section]: {
+        ...prev.data[section],
+        [featureName]: { ...prev.data[section][featureName], mapping: mappingString }
+      }
+    }
+  }));
+};
   const handleEditFeature = (featureName: string, field: string, value: string) => {
     setDossier((prev: any) => ({
       ...prev,
@@ -75,6 +116,40 @@ const ViewDataPage = () => {
     }));
   };
 
+  const handleDeploy = async () => {
+    if (!selectedModel) {
+      alert("Por favor, selecciona un modelo antes de continuar.");
+      setShowModelPicker(true);
+      return;
+    }
+
+    const payload = {
+      dossier: dossier.data, // Los datos editados (incluyendo mappings y orden)
+      config: {
+        model: selectedModel,
+        timestamp: new Date().toISOString(),
+      }
+    };
+
+    try {
+      const response = await fetch("http://localhost:8000/api/stage2/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert("Configuración enviada con éxito. Iniciando entrenamiento...");
+        // navigate("/training-progress"); // Opcional: Redirigir a una pantalla de carga
+      } else {
+        throw new Error("Error en la respuesta del servidor");
+      }
+    } catch (error) {
+      console.error("Error al enviar al backend:", error);
+      alert("No se pudo conectar con el servidor.");
+    }
+  };
   const handleSave = () => {
     console.log("Dossier Final:", dossier);
     alert("Dossier actualizado y listo para Etapa 2");
@@ -94,7 +169,10 @@ const ViewDataPage = () => {
                     onToggleOpen={() => setShowModelPicker(!showModelPicker)}
                     onSelectModel={setSelectedModel}/>
         </div>
-        <button onClick={handleSave} style={saveBtnStyle}><Save size={18} /> Guardar Cambios</button>
+        {/* Botón de Enviar a Backend */}
+        <button onClick={handleDeploy} style={deployBtnStyle}>
+          <Brain size={18} /> Iniciar Entrenamiento
+        </button>
       </div>
 
       <div style={contentLayout}>
@@ -171,8 +249,67 @@ const ViewDataPage = () => {
             </div>
           </section>
         </div>
-
+        
         <div style={mainPanelStyle}>
+          {/* SECCIÓN 1: TARGETS CATEGÓRICAS (EDITABLES) */}
+          <h2 style={sectionTitle}><Brain size={20}/> Análisis de Variables Objetivo (Editable)</h2>
+          <div style={gridFeatures}>
+            {Object.keys(dossier?.data?.targets_evaluation || {}).map((key) => {
+              const feat = dossier.data.targets_evaluation[key];
+              return (
+                <div key={key} style={featureCard}>
+                  <div style={featureHeader}>
+                    <span style={featureName}>{key}</span>
+                    <select 
+                      value={feat.subclass} 
+                      onChange={(e) => handleEditFeature(key, 'subclass', e.target.value)} 
+                      style={selectStyle}
+                    >
+                      <option value="NOMINAL">NOMINAL</option>
+                      <option value="ORDINAL">ORDINAL</option>
+                      <option value="BINARY">BINARY</option>
+                      <option value="TEXT_NLP">TEXT_NLP</option>
+                    </select>
+                  </div>
+                  <label style={labelStyle}>Razonamiento Semántico:</label>
+                  <textarea 
+                    style={textAreaStyle} 
+                    value={feat.reasoning || ""} 
+                    onChange={(e) => handleEditFeature(key, 'reasoning', e.target.value)} 
+                  />
+                  <div style={infoRow}>
+                    <span>Tipo Técnico:</span> 
+                    <strong style={{color: '#648f8c'}}>
+                      {TECHNICAL_LEVEL_MAP[feat.technical_level] || "Desconocido"}
+                    </strong>
+                  </div>
+                  <div style={{ marginTop: '10px', borderTop: '1px solid #333', paddingTop: '10px' }}>
+                  <label style={labelStyle}>Mapeo Ordinal / Jerarquía:</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '8px' }}>
+                    {parseMapping(feat.mapping).map((item) => (
+                      <div key={item.key} style={mappingRowStyle}>
+                        <span style={{ color: '#ccc' }}>{item.key}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '10px', color: '#648f8c' }}>Valor:</span>
+                          <input
+                            type="number"
+                            value={item.val}
+                            onChange={(e) => handleUpdateMapping(key, item.key, parseInt(e.target.value))}
+                            style={mappingInputStyle}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    {parseMapping(feat.mapping).length === 0 && (
+                      <span style={{ fontSize: '11px', color: '#666', fontStyle: 'italic' }}>Sin mapeo definido (Nominal)</span>
+                    )}
+                  </div>
+                  </div>
+                </div>
+                
+              );
+            })}
+          </div>
           {/* SECCIÓN 1: VARIABLES CATEGÓRICAS (EDITABLES) */}
           <h2 style={sectionTitle}><Brain size={20}/> Análisis Semántico (Editable)</h2>
           <div style={gridFeatures}>
@@ -205,6 +342,28 @@ const ViewDataPage = () => {
                       {TECHNICAL_LEVEL_MAP[feat.technical_level] || "Desconocido"}
                     </strong>
                   </div>
+                  <div style={{ marginTop: '10px', borderTop: '1px solid #333', paddingTop: '10px' }}>
+                  <label style={labelStyle}>Mapeo Ordinal / Jerarquía:</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '8px' }}>
+                    {parseMapping(feat.mapping).map((item) => (
+                      <div key={item.key} style={mappingRowStyle}>
+                        <span style={{ color: '#ccc' }}>{item.key}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '10px', color: '#648f8c' }}>Valor:</span>
+                          <input
+                            type="number"
+                            value={item.val}
+                            onChange={(e) => handleUpdateMapping(key, item.key, parseInt(e.target.value))}
+                            style={mappingInputStyle}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                    {parseMapping(feat.mapping).length === 0 && (
+                      <span style={{ fontSize: '11px', color: '#666', fontStyle: 'italic' }}>Sin mapeo definido (Nominal)</span>
+                    )}
+                  </div>
+                </div>
                 </div>
               );
             })}
@@ -261,6 +420,20 @@ const ViewDataPage = () => {
 };
 
 // --- NUEVOS ESTILOS PARA EDICIÓN ---
+
+const deployBtnStyle: React.CSSProperties = {
+  backgroundColor: "#648f8c",
+  color: "white",
+  border: "none",
+  padding: "10px 20px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  fontWeight: "bold",
+  boxShadow: "0 4px 14px 0 rgba(100, 143, 140, 0.39)"
+};
 
 const orderItemEditable: React.CSSProperties = {
   display: "flex",
@@ -437,4 +610,24 @@ const labelStyle: React.CSSProperties = {
   color: "#648f8c",
   fontWeight: "bold",
   marginTop: "10px"
+};
+const mappingRowStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  backgroundColor: "#121212",
+  padding: "5px 10px",
+  borderRadius: "6px",
+  fontSize: "12px"
+};
+
+const mappingInputStyle: React.CSSProperties = {
+  width: "40px",
+  backgroundColor: "#1e1e1e",
+  border: "1px solid #333",
+  color: "#648f8c",
+  borderRadius: "4px",
+  textAlign: "center",
+  fontSize: "12px",
+  outline: "none"
 };
