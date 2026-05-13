@@ -1,0 +1,30 @@
+# DATASET_CONTEXT
+rows: 8219	| features: 5
+target_correlation:   '{type: HybridChain, dependency: Low, p_value: 0.1059 }'
+
+# USER_INTERFACE_CONSTRAINTS
+cv_strategy: '{'strategy': StratifiedKFold, 'folds': 10}'
+feature_selection_threshold: 0.05
+allow_ensembles: True
+optimization_priority: ['Performance', 'Interpretability']
+
+# TARGET_STRATEGY_DOSSIER
+targets:
+	- name: sala:
+	- type: NOMINAL
+	- dependency: Low (linked to prioridad)
+	- priority_metrics: ['F1-Score', 'Accuracy']
+
+	- name: prioridad:
+	- type: ORDINAL
+	- dependency: Low (linked to sala)
+	- priority_metrics: ['Kappa', 'Log-Loss']
+
+	# MODEL_SELECTION_GUIDELINES
+mode: AUTONOMOUS_COMPETITION
+libraries: ['scikit-learn', 'xgboost', 'lightgbm']
+
+#  MODEL_TUNING_STRATEGY
+search_type: Bayesian_Optimization
+max_trials: 50
+timeout: 600

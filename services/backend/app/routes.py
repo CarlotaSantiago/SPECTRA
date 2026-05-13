@@ -19,7 +19,7 @@ from app.services.device_detection import get_device
 from app.services.routeOllama import call_ollama
 from app.services.processor import limpiar_datos
 from app.services.predict_models import predecir_final
-from app.services.build_toon import build_toon_payload, integrar_analisis_llm
+from app.services.build_toon import build_toon_payload, build_toon_s2, integrar_analisis_llm
 from app.services.strarified_sampling import stratified_sample_100
 from app.services.orchestation import build_chain_strategy, compute_target_dependency_matrix
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
@@ -255,7 +255,7 @@ def process_state_1(data: Dossier):
         user_prompt = toon
         with open("toon_dossier.txt", "w", encoding="utf-8") as f:
             f.write(user_prompt)
-        semantic_analysis = call_ollama(data.model, system_prompt, user_prompt)
+        semantic_analysis = call_ollama(data.model, system_prompt, user_prompt, state=1)
         with open("toon_dossier.json", "r", encoding="utf-8") as f:
             contenido = json.load(f)
         json_tecnico = integrar_analisis_llm(contenido, semantic_analysis)
@@ -263,7 +263,7 @@ def process_state_1(data: Dossier):
 
         df_for_matrix = df.sample(n=min(10000, len(df)), random_state=42) if len(df) > 0 else df
         matriz = compute_target_dependency_matrix(df_for_matrix, data.targets, json_tecnico["targets_evaluation"])
-        orquestation = build_chain_strategy(matriz, json_tecnico["targets_evaluation"], threshold=0.15)
+        orquestation = build_chain_strategy(matriz, json_tecnico["targets_evaluation"], threshold=0.05)
         matrix_dict = matriz.to_dict(orient='index')
         json_tecnico["target_dependency_matrix"] = matrix_dict
         json_tecnico["orchestration_plan"] = {
@@ -285,16 +285,60 @@ def process_state_1(data: Dossier):
             "message": str(e)
         }
 
-
-
 @router.post("/process-state2")
 def process_state_2(data: Dict[str, Any]):
     try:
-        # Aquí procesaríamos la información de json_tecnico para entrenar modelos, etc.
-        # Por ahora, solo devolvemos lo que recibimos para verificar la conexión.
+        dossier = data["dossier"]
+        orchestrator_system_prompt = """ 
+            You are the Master Pipeline Orchestrator, a Senior Lead Data Scientist.  
+            Your goal is to generate a professional, high-performance, and 
+            IMMEDIATELY EXECUTABLE Python script for model training. 
+            
+            DIVISION OF RESPONSIBILITIES:     
+            The dossier already contains 'chain_strategy' with the structural 
+            pipeline    decision (ClassifierChain, RegressorChain, HybridChain, 
+            GatedChain, MultiOutput).    YOUR responsibility is to decide the MODELS 
+            and METRICS for each target. 
+            
+            RESPONSIBILITIES:       
+            1. Read 'chain_strategy.target_profiles' for each target:          
+                - subclass: NOMINAL or ORDINAL          
+                - n_classes: number of unique classes          
+                - mapping: ordinal encoding if applicable          
+                Select the most appropriate model and evaluation metric based on 
+            these facts.       
+            2. Implement the chain strategy exactly as specified in 
+            'chain_strategy.strategy'.          
+                Do NOT change the strategy or execution order.       
+            3. HybridChain / GatedChain: ALWAYS use cross_val_predict() —          
+                NEVER call predict() or predict_proba() on the full training set.    
+            4. Use the search_type specified in the dossier for hyperparameter 
+            tuning.       
+            5. Save each model as model_{target}.joblib using joblib.       
+            6. Print final summary with best params and validation metrics.     
+            
+            OUTPUT RULES: 
+            - Provide a brief "Orchestration Reasoning" section. - Provide the Python Code block.  - Do not include any conversational text after the code. - Ensure all necessary imports (pandas, sklearn, joblib, etc.) are at 
+            the top of the generated script. 
+            """ 
+        typo_correlation = dossier["orchestration_plan"]["strategy"]
+        max_dependency = dossier["orchestration_plan"]["max_dependency"]
+        dependency = "High" if max_dependency > 0.15 else "Low"
+        for target, info in dossier["targets_evaluation"].items():
+            dependencies = dossier["target_dependency_matrix"][target]
+            for dep_target, dep_value in dependencies.items():
+                if dep_value > 0.15 and dep_target != target:
+                    info["dependency"] = f"High (linked to {dep_target})"
+                elif dep_target != target:
+                    info["dependency"] = f"Low (linked to {dep_target})"
+        toon = build_toon_s2(dossier, typo_correlation, max_dependency, dependency, dossier["targets_evaluation"])
+        user_prompt = f"Please orchestrate the training pipeline for the following dossier:\n\n{toon}"
+        orchestation_script = call_ollama(data["model"], orchestrator_system_prompt, user_prompt, state=2)
+        with open("orchestation_script.py", "w", encoding="utf-8") as f:
+            f.write(orchestation_script) 
         return {
             "status": "ok",
-            "received_data": data
+            "received_data": orchestation_script
         }
     except Exception as e:
         logger.error(f"process_state_2 failed: {e}")

@@ -5,14 +5,35 @@ import { ModelPicker } from "../feature/components/ModelPicker";
 import { useOllamaModels } from "../feature/hooks/useOllamaModels";
 
 const ViewDataPage = () => {
+  // Dentro de ViewDataPage, al recibir el state o inicializar:
   const { state } = useLocation();
   const navigate = useNavigate();
   const { models: ollamaModels, loading: loadingModels } = useOllamaModels();
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [selectedModel, setSelectedModel] = useState(""); // <-- 2. Estado del modelo
-    
-  const [dossier, setDossier] = useState<any>(state?.toonData || null);
-
+  
+  const [dossier, setDossier] = useState<any>(() => {
+    const base = state?.toonData || null;
+    if (base && !base.data.user_constraints) {
+      // Inyectamos los valores predeterminados que pidió el profe
+      base.data.user_constraints = {
+        cv_strategy: { type: "StratifiedKFold", folds: 10 },
+        feature_selection_threshold: 0.05,
+        allow_ensembles: true,
+        optimization_priority: ["Performance", "Interpretability"],
+        model_selection: {
+          mode: "AUTONOMOUS_COMPETITION",
+          libraries: ["scikit-learn", "xgboost", "lightgbm"]
+        },
+        tuning_strategy: {
+          search_type: "Bayesian_Optimization",
+          max_trials: 50,
+          timeout: 600
+        }
+      };
+    }
+    return base;
+  });
   if (!dossier) {
     return (
       <div style={errorStyle}>
@@ -32,6 +53,36 @@ const ViewDataPage = () => {
   4: "Alta Cardinalidad"
 };
 
+const METRICS_OPTIONS = {
+  CLASSIFICATION: ["F1-Score", "AUC-ROC", "Accuracy", "Precision", "Recall", "Kappa", "Log-Loss"],
+  REGRESSION: ["R2-Score", "MAE", "MSE", "RMSE", "MAPE"]
+};
+
+  const handleUpdateConstraint = (field: string, value: any) => {
+    setDossier((prev: any) => ({
+      ...prev,
+      data: {
+        ...prev.data,
+        user_constraints: {
+          ...prev.data.user_constraints,
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  const handleUpdateCV = (field: string, value: any) => {
+    setDossier((prev: any) => ({
+      ...prev,
+      data: {
+        ...prev.data,
+        user_constraints: {
+          ...prev.data.user_constraints,
+          cv_strategy: { ...prev.data.user_constraints.cv_strategy, [field]: value }
+        }
+      }
+    }));
+  };
   // Función para convertir "{A: 0, B: 1}" en [{key: "A", val: 0}, {key: "B", val: 1}]
   const parseMapping = (mappingStr: any) => {
     if (!mappingStr || typeof mappingStr !== "string") return [];
@@ -69,6 +120,32 @@ const ViewDataPage = () => {
       [section]: {
         ...prev.data[section],
         [featureName]: { ...prev.data[section][featureName], mapping: mappingString }
+      }
+    }
+  }));
+};
+const handleUpdateMetrics = (targetName: string, metric: string) => {
+  const currentMetrics = dossier.data.targets_evaluation[targetName].priority_metrics || [];
+  let newMetrics;
+  
+  if (currentMetrics.includes(metric)) {
+    // Si ya existe, la quitamos (deseleccionar)
+    newMetrics = currentMetrics.filter((m: string) => m !== metric);
+  } else {
+    // Si no existe, la añadimos
+    newMetrics = [...currentMetrics, metric];
+  }
+
+  setDossier((prev: any) => ({
+    ...prev,
+    data: {
+      ...prev.data,
+      targets_evaluation: {
+        ...prev.data.targets_evaluation,
+        [targetName]: { 
+          ...prev.data.targets_evaluation[targetName], 
+          priority_metrics: newMetrics 
+        }
       }
     }
   }));
@@ -125,14 +202,11 @@ const ViewDataPage = () => {
 
     const payload = {
       dossier: dossier.data, // Los datos editados (incluyendo mappings y orden)
-      config: {
-        model: selectedModel,
-        timestamp: new Date().toISOString(),
-      }
+      model: selectedModel,
     };
-
+    console.log("Payload a enviar:", payload);
     try {
-      const response = await fetch("http://localhost:8000/api/stage2/setup", {
+      const response = await fetch("http://localhost:8000/process-state2", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -141,6 +215,7 @@ const ViewDataPage = () => {
       if (response.ok) {
         const result = await response.json();
         alert("Configuración enviada con éxito. Iniciando entrenamiento...");
+        console.log("Respuesta del backend:", result);
         // navigate("/training-progress"); // Opcional: Redirigir a una pantalla de carga
       } else {
         throw new Error("Error en la respuesta del servidor");
@@ -252,7 +327,7 @@ const ViewDataPage = () => {
         
         <div style={mainPanelStyle}>
           {/* SECCIÓN 1: TARGETS CATEGÓRICAS (EDITABLES) */}
-          <h2 style={sectionTitle}><Brain size={20}/> Análisis de Variables Objetivo (Editable)</h2>
+          <h2 style={sectionTitle}><Brain size={20}/> Análisis de Variables Objetivo</h2>
           <div style={gridFeatures}>
             {Object.keys(dossier?.data?.targets_evaluation || {}).map((key) => {
               const feat = dossier.data.targets_evaluation[key];
@@ -303,6 +378,37 @@ const ViewDataPage = () => {
                     {parseMapping(feat.mapping).length === 0 && (
                       <span style={{ fontSize: '11px', color: '#666', fontStyle: 'italic' }}>Sin mapeo definido (Nominal)</span>
                     )}
+                    {/* --- SECCIÓN DE MÉTRICAS DENTRO DE LA TARJETA --- */}
+                    <div style={{ marginTop: '10px', borderTop: '1px solid #333', paddingTop: '10px' }}>
+                      <label style={labelStyle}>Métricas de Prioridad:</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
+                        {METRICS_OPTIONS.CLASSIFICATION.map((metric) => {
+                          const isSelected = feat.priority_metrics?.includes(metric);
+                          return (
+                            <button
+                              key={metric}
+                              onClick={() => handleUpdateMetrics(key, metric)}
+                              style={{
+                                ...miniBtnStyle,
+                                padding: '4px 8px',
+                                fontSize: '10px',
+                                backgroundColor: isSelected ? '#648f8c' : '#121212',
+                                color: isSelected ? 'white' : '#648f8c',
+                                border: `1px solid ${isSelected ? '#648f8c' : '#333'}`,
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              {metric}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {(!feat.priority_metrics || feat.priority_metrics.length === 0) && (
+                        <span style={{ fontSize: '10px', color: '#ff6b6b', display: 'block', marginTop: '5px' }}>
+                          ⚠️ Selecciona al menos una métrica
+                        </span>
+                      )}
+                    </div>
                   </div>
                   </div>
                 </div>
@@ -311,7 +417,7 @@ const ViewDataPage = () => {
             })}
           </div>
           {/* SECCIÓN 1: VARIABLES CATEGÓRICAS (EDITABLES) */}
-          <h2 style={sectionTitle}><Brain size={20}/> Análisis Semántico (Editable)</h2>
+          <h2 style={sectionTitle}><Brain size={20}/> Análisis Semántico </h2>
           <div style={gridFeatures}>
             {Object.keys(dossier?.data?.categorical_evaluation || {}).map((key) => {
               const feat = dossier.data.categorical_evaluation[key];
@@ -372,7 +478,7 @@ const ViewDataPage = () => {
           {/* SECCIÓN 2: VARIABLES CLASIFICADAS (SÓLO LECTURA) */}
           {dossier?.data?.classified_evaluation && Object.keys(dossier.data.classified_evaluation).length > 0 && (
             <>
-              <h2 style={{...sectionTitle, marginTop: '40px'}}><Activity size={20}/> Análisis Técnico (Solo Lectura)</h2>
+              <h2 style={{...sectionTitle, marginTop: '40px'}}><Activity size={20}/> Análisis Técnico</h2>
               <div style={gridFeatures}>
                 {Object.keys(dossier.data.classified_evaluation).map((key) => {
                   const feat = dossier.data.classified_evaluation[key];
@@ -413,6 +519,164 @@ const ViewDataPage = () => {
               </div>
             </>
           )}
+        </div>
+        <div style={sidebarStyle}>
+          <h2 style={sectionTitle}><Save size={18}/> Ajustes de Entrenamiento</h2>
+          
+          {/* CARD: VALIDACIÓN CRUZADA */}
+          <section style={cardStyle}>
+            <h3 style={cardTitle}><Activity size={16}/> Validación Cruzada (CV)</h3>
+            <label style={labelStyle}>Estrategia:</label>
+            <select 
+              value={dossier.data.user_constraints.cv_strategy.type}
+              onChange={(e) => handleUpdateCV("type", e.target.value)}
+              style={{...selectStyle, width: '100%', marginTop: '5px'}}
+            >
+              <option value="KFold">KFold (Regresión)</option>
+              <option value="StratifiedKFold">StratifiedKFold (Clasificación)</option>
+              <option value="ShuffleSplit">ShuffleSplit (Aleatorio)</option>
+              <option value="TimeSeriesSplit">TimeSeriesSplit (Temporal)</option>
+            </select>
+
+            <label style={labelStyle}>Número de Folds: {dossier.data.user_constraints.cv_strategy.folds}</label>
+            <input 
+              type="range" min="2" max="20" 
+              value={dossier.data.user_constraints.cv_strategy.folds}
+              onChange={(e) => handleUpdateCV("folds", parseInt(e.target.value))}
+              style={{width: '100%', accentColor: '#648f8c'}}
+            />
+          </section>
+
+          {/* CARD: FILTROS Y ENSAMBLADOS */}
+          <section style={cardStyle}>
+            <h3 style={cardTitle}><LayoutGrid size={16}/> Selección de Features</h3>
+            <label style={labelStyle}>Umbral (Threshold): {dossier.data.user_constraints.feature_selection_threshold}</label>
+            <input 
+              type="number" step="0.01"
+              value={dossier.data.user_constraints.feature_selection_threshold}
+              onChange={(e) => handleUpdateConstraint("feature_selection_threshold", parseFloat(e.target.value))}
+              style={{...mappingInputStyle, width: '100%', textAlign: 'left', padding: '5px'}}
+            />
+
+            <div style={{...infoRow, marginTop: '15px'}}>
+              <label style={{...labelStyle, marginTop: 0}}>Permitir Ensamblados:</label>
+              <input 
+                type="checkbox" 
+                checked={dossier.data.user_constraints.allow_ensembles}
+                onChange={(e) => handleUpdateConstraint("allow_ensembles", e.target.checked)}
+                style={{accentColor: '#648f8c', transform: 'scale(1.2)'}}
+              />
+            </div>
+          </section>
+
+          {/* CARD: PRIORIDADES */}
+          <section style={cardStyle}>
+            <h3 style={cardTitle}><Brain size={16}/> Prioridad de Optimización</h3>
+            <select 
+              multiple
+              value={dossier.data.user_constraints.optimization_priority}
+              onChange={(e) => {
+                const values = Array.from(e.target.selectedOptions, option => option.value);
+                handleUpdateConstraint("optimization_priority", values);
+              }}
+              style={{...selectStyle, width: '100%', height: '80px'}}
+            >
+              <option value="Performance">Performance (Precisión)</option>
+              <option value="Interpretability">Interpretability (Explicación)</option>
+              <option value="Inference Speed">Inference Speed (Latencia)</option>
+              <option value="Training Speed">Training Speed (Tiempo)</option>
+            </select>
+            <span style={{fontSize: '10px', color: '#666', marginTop: '5px', display: 'block'}}>
+              * Ctrl + Click para seleccionar varios
+            </span>
+          </section>
+
+          {/* --- SECCIÓN: ESTRATEGIA DE MODELADO --- */}
+          <section style={cardStyle}>
+            <h3 style={cardTitle}><Brain size={16}/> Selección de Modelos</h3>
+            
+            <label style={labelStyle}>Modo de Competición:</label>
+            <select 
+              value={dossier.data.user_constraints.model_selection.mode}
+              onChange={(e) => handleUpdateConstraint("model_selection", {
+                ...dossier.data.user_constraints.model_selection, mode: e.target.value
+              })}
+              style={{...selectStyle, width: '100%', marginTop: '5px'}}
+            >
+              <option value="AUTONOMOUS_COMPETITION">Competición Autónoma</option>
+              <option value="SINGLE_BEST_MODEL">Mejor Modelo Único</option>
+              <option value="ENSEMBLE_ONLY">Solo Ensamblados</option>
+            </select>
+
+            <label style={labelStyle}>Librerías Permitidas:</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
+              {["scikit-learn", "xgboost", "lightgbm", "catboost"].map((lib) => {
+                const libs = dossier.data.user_constraints.model_selection.libraries;
+                const isSelected = libs.includes(lib);
+                return (
+                  <button
+                    key={lib}
+                    onClick={() => {
+                      const newLibs = isSelected ? libs.filter((l: string) => l !== lib) : [...libs, lib];
+                      handleUpdateConstraint("model_selection", { ...dossier.data.user_constraints.model_selection, libraries: newLibs });
+                    }}
+                    style={{
+                      ...miniBtnStyle,
+                      padding: '4px 8px',
+                      fontSize: '10px',
+                      backgroundColor: isSelected ? '#648f8c' : '#121212',
+                      color: isSelected ? 'white' : '#648f8c'
+                    }}
+                  >
+                    {lib}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* --- SECCIÓN: OPTIMIZACIÓN DE HIPERPARÁMETROS --- */}
+          <section style={cardStyle}>
+            <h3 style={cardTitle}><Activity size={16}/> Hyperparameter Tuning</h3>
+            
+            <label style={labelStyle}>Tipo de Búsqueda:</label>
+            <select 
+              value={dossier.data.user_constraints.tuning_strategy.search_type}
+              onChange={(e) => handleUpdateConstraint("tuning_strategy", {
+                ...dossier.data.user_constraints.tuning_strategy, search_type: e.target.value
+              })}
+              style={{...selectStyle, width: '100%', marginTop: '5px'}}
+            >
+              <option value="Bayesian_Optimization">Bayesian Optimization (Smart)</option>
+              <option value="Randomized_Search">Randomized Search (Fast)</option>
+              <option value="Grid_Search">Grid Search (Exhaustive)</option>
+            </select>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
+              <div>
+                <label style={labelStyle}>Máx Intentos:</label>
+                <input 
+                  type="number" 
+                  value={dossier.data.user_constraints.tuning_strategy.max_trials}
+                  onChange={(e) => handleUpdateConstraint("tuning_strategy", {
+                    ...dossier.data.user_constraints.tuning_strategy, max_trials: parseInt(e.target.value)
+                  })}
+                  style={{...mappingInputStyle, width: '100%'}}
+                />
+              </div>
+              <div>
+                <label style={labelStyle}>Timeout (s):</label>
+                <input 
+                  type="number" 
+                  value={dossier.data.user_constraints.tuning_strategy.timeout}
+                  onChange={(e) => handleUpdateConstraint("tuning_strategy", {
+                    ...dossier.data.user_constraints.tuning_strategy, timeout: parseInt(e.target.value)
+                  })}
+                  style={{...mappingInputStyle, width: '100%'}}
+                />
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -505,7 +769,7 @@ const headerStyle: React.CSSProperties = {
 };
 
 const contentLayout: React.CSSProperties = {
-  display: "grid", gridTemplateColumns: "300px 1fr", gap: "20px"
+  display: "grid", gridTemplateColumns: "300px 1fr 300px", gap: "20px"
 };
 
 const sidebarStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "20px" };

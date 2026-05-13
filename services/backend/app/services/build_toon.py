@@ -2,6 +2,38 @@
 import re
 import json
 
+def build_toon_s2(metadata, type_correlation, max_dependency, dependency, target_meta):
+    toon_str = "# DATASET_CONTEXT\n"
+    toon_str += f"rows: {metadata['global_metadata']['total_rows']}\t| features: {metadata['global_metadata']['features']}\n"
+    toon_str += f"target_correlation:   '{{type: {type_correlation}, dependency: {dependency}, p_value: {max_dependency} }}'\n\n"
+
+    toon_str += "# USER_INTERFACE_CONSTRAINTS\n"
+    toon_str += f"cv_strategy: '{{'strategy': {metadata['user_constraints']['cv_strategy']['type']}, 'folds': {metadata['user_constraints']['cv_strategy']['folds']}}}'\n"
+    toon_str += f"feature_selection_threshold: {metadata['user_constraints']['feature_selection_threshold']}\n"
+    toon_str += f"allow_ensembles: {metadata['user_constraints']['allow_ensembles']}\n"
+    toon_str += f"optimization_priority: {metadata['user_constraints']['optimization_priority']}\n\n"
+
+    toon_str += "# TARGET_STRATEGY_DOSSIER\n"
+    toon_str += "targets:\n\t"
+    for target, info in target_meta.items():
+        toon_str += f"- name: {target}:\n\t"
+        toon_str += f"- type: {info['subclass']}\n\t"
+        toon_str += f"- dependency: {info['dependency']}\n\t"
+        toon_str += f"- priority_metrics: {info['priority_metrics']}\n\n\t"
+
+    
+    toon_str += "# MODEL_SELECTION_GUIDELINES\n"
+    toon_str += f"mode: {metadata['user_constraints']['model_selection']['mode']}\n"
+    toon_str += f"libraries: {metadata['user_constraints']['model_selection']['libraries']}\n\n"
+
+    toon_str += "#  MODEL_TUNING_STRATEGY\n"
+    toon_str += f"search_type: {metadata['user_constraints']['tuning_strategy']['search_type']}\n"
+    toon_str += f"max_trials: {metadata['user_constraints']['tuning_strategy']['max_trials']}\n"
+    toon_str += f"timeout: {metadata['user_constraints']['tuning_strategy']['timeout']}\n"
+
+    with open("toon_s2_prompt.txt", "w", encoding="utf-8") as f:
+        f.write(toon_str)
+    return toon_str
 def build_toon_payload(metadata, analysis_results, sample_df, features, target_meta):
     # 1. Metadatos Globales
     toon_str = "# GLOBAL_METADATA\n"
