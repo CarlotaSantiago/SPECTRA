@@ -1,8 +1,9 @@
 {
     "global_metadata": {
-        "total_rows": 8219,
+        "total_rows": 10240,
         "features": 5,
         "targets": [
+            "especialidad",
             "sala",
             "prioridad"
         ],
@@ -12,177 +13,201 @@
         "descrip": {
             "technical_level": 2,
             "ig_scores": {
-                "sala": 0.0,
-                "prioridad": 0.0
+                "especialidad": 0.4967,
+                "sala": 0.4967,
+                "prioridad": 0.4967
             },
             "unique_pool": [
+                "RADIOLOGIA DE ABDOMEN         ",
+                "ECOGRAFIAS                    ",
+                "ECOGRAFIA VERIN               ",
+                "RADIOLOGIA BARCO              ",
+                "RADIOLOGIA INFANTIL           ",
+                "RX GENITO-URINARIO-TELEMANDO  ",
+                "MM ORDINARIAS Y A FECHA PREFIJ",
+                "MAMOGRAFIAS PREFERENTES       ",
+                "ECOS MAMA Y MAMOGRAFIAS       ",
                 "RADIOLOGIA MUSCULOESQUELETICA "
             ],
             "user_mandatory": false,
             "subclass": "NOMINAL",
             "mapping": null,
-            "reasoning": "The unique_pool contains a single value, indicating no meaningful categorical distinction or order."
+            "reasoning": "one sentence."
         },
         "servpeti": {
             "technical_level": 2,
             "ig_scores": {
-                "sala": 0.106,
-                "prioridad": 0.0581
+                "especialidad": 0.3094,
+                "sala": 0.3945,
+                "prioridad": 0.3561
             },
             "unique_pool": [
-                "C139",
-                "C004",
-                "C142",
-                "C105",
-                "CGDE",
+                "MIIC",
+                "ENDE",
+                "B047",
+                "C162",
+                "C118",
+                "HEME",
+                "C106",
                 "C355",
-                "C001",
+                "ORLE",
+                "C002",
+                "C008",
+                "C109",
+                "V061",
                 "C156",
-                "C123",
-                "C320",
-                "C308",
-                "TRAE",
-                "C005",
-                "C003",
-                "C008"
+                "C009"
             ],
             "user_mandatory": false,
             "subclass": "NOMINAL",
             "mapping": null,
-            "reasoning": "The unique_pool contains distinct codes without inherent order or hierarchy."
+            "reasoning": "one sentence."
         }
     },
     "targets_evaluation": {
-        "sala": {
+        "especialidad": {
             "technical_level": 1,
             "subclass": "NOMINAL",
             "mapping": null,
-            "reasoning": "Values like 'H' and 'NH' represent distinct categories without a natural ordering."
+            "reasoning": "one sentence."
+        },
+        "sala": {
+            "technical_level": 2,
+            "subclass": "NOMINAL",
+            "mapping": null,
+            "reasoning": "one sentence."
         },
         "prioridad": {
             "technical_level": 2,
             "subclass": "ORDINAL",
             "mapping": "{A: 0, B: 1, C: 2}",
-            "reasoning": "Values 'A', 'B', 'C' represent clear priority levels with an unambiguous hierarchical order."
+            "reasoning": "one sentence."
         }
     },
     "classified_evaluation": {
         "edad": {
-            "nunique": 85,
-            "r_ratio": 0.0103,
+            "nunique": 93,
+            "r_ratio": 0.0091,
             "technical_level": 3,
             "subclass": "discrete",
             "user_mandatory": true,
             "unique_pool": [
-                "79",
+                "90",
+                "73",
                 "78",
-                "70",
-                "64",
-                "77",
                 "65",
-                "75",
-                "66",
-                "59",
-                "85",
-                "83",
-                "54",
-                "53",
-                "92",
-                "86",
-                "69",
+                "56",
                 "74",
-                "47",
-                "41",
-                "76"
+                "71",
+                "62",
+                "86",
+                "79",
+                "82",
+                "57",
+                "80",
+                "44",
+                "55",
+                "35",
+                "77",
+                "53",
+                "69",
+                "75"
             ],
             "information_gain": {
-                "sala": 0.0202,
-                "prioridad": 0.2448
+                "especialidad": 0.0145,
+                "sala": 0.0334,
+                "prioridad": 0.2101
             }
         },
         "datosclini_limpio": {
-            "nunique": 7041,
-            "r_ratio": 0.8567,
+            "nunique": 9014,
+            "r_ratio": 0.8803,
             "technical_level": 4,
             "subclass": "high cardinality",
             "user_mandatory": false,
             "unique_pool": [
-                "",
-                "t regio lateral cuello",
-                "nodulo musculo externo acleido mastoideo insercion izquierdo bordes lisos sin fijacion planos internos movible no doloroso 5 centimetros aproximado",
-                "tumefaccion region pie d cicatriz hallux valgus blanda movil dolorosa",
-                "remitida lipoma cara interna muslo izquierdo impresiona acumulo grasa normal autentico lipoma",
-                "hinchazon tercio distal pierna izquierda bultoma estudio",
-                "bultoma movil 15 centimetros diametro nivel supraclavicular izquierdo",
-                "varon 72 años acude dolor region inguinal region correspondiente antigua cicatriz niega bulto bolsa incremente esfuerzos valsabas no cambios coloracion piel exploracion cicatriz region inguinal no palpo hernias no alteraciones escroto ni adenopatias",
-                "bultoma cara muslo antecedente traumatico 2 meses",
-                "muller 84 ano traumatismo accidental hai 2 semanas golpe mid nota tumoracion superior muslo dereito doloroso palpacion non eritema non calor local",
-                "paciente 81 años acude tumoracion flexura codo derecho consistencia elastica no refiere sindrome constitucional asociado",
-                "bultoma apendice xifoides crece ultimos meses radiografia sin lesiones oseas impresiona lipoma solicito ecografia",
-                "paciente presenta dolor nivel dorsal derecho inferior sensacion bultoma tira examen fisico dolor palpacion espacio intercostal derecho nivel reborde costal no palpo bultoma compañero ido urgencias realizo radiografia normal",
-                "tumor volar radial pulso dereito",
-                "presencial presenta nivel axila izquierda lesiones nodular bilobulada superficial consistencia grasa profunda caracteristica 05cm impresiones quiste sebaceo lipomas ecografia imagenes compatibles tejido graso sin vascularizacion 2cm diametro caracteristica 04cm antecedentes personales mvp x fa arritmia completa fibrilacion auricular pcr no adenopatias niveles exfumador 17 años i posibles quistes sebaceos sin signos inflamatorios p solicito analitica serologia solicito ecografia reglada nodulos axilares izquierdo",
-                "bultoma antebrazo nivel codo",
-                "tumoracion supraclavicular izquierda ocasiona molestias puncion aspiracion aguja fina insuficiente diagnostico",
-                "lesion nodular gluteoraiz muslo derecha años evolucion",
-                "coleccion liquida cara posterior antebrazo izquierdo mes no doloroso no eritema no calor impresiona liquido sinovial extravasado no recuerda traumatismo ni sobreesfuerzo previo no varia antiinflamatorios no esteroideos frio ruego ecografia partes blandas dicha region antebrazo aproximar diagnostico gracia saludo",
-                "mujer 46 años acude tumoracion escapular años evolucion realizada puncion aspiracion aguja fina 2017 antecedentes personales lipoma aumentado tamaño año descrita 2017 4 centimetros actualmente 8x8 centimetros impresiona subcutanea no adherida planos profundos introduce axila lateral"
+                "paciente nodulos tiroideos hipertiroidismo tiroglobuli8na elevada solicito control",
+                "bocio mn nodulo d tr 3 34mms i tr4 22mms",
+                "mujer 76 años bmn nodulos istmoltd delimitado solido exofitico isoecogenico parenquima tiroideo aparicion zonas quisticas milimetricas seno mide 19 milimetros eje tirads 3 mixtos predominio isoecogenicos tamaño localizan lti miden 20 13 milimetros eje centimetros cubicos tirads 2 tirads 3",
+                "antecedente carcinoma mama carcinoma colon bocio multinodular larga evolucion paaf benignas ultimaen 2023 nodulo li tiroides implantacion baja aumento lobulos consistencia aumentada",
+                "antecedente modulo tiroides valorada servicio privado",
+                "molestias tragar",
+                "sindrome mielodisplasico hipertrofia ltd exploracion sin nodulos palpables",
+                "bmn paaf referidas nodulo ld benignas dificil comparar eco palpo nodulo istmold 1 centimetros no adenopatias",
+                "mujer 61 años bocio nodular expensas nt lti tr3 235 x 174 x 351 milimetros",
+                "hipotiroidismo tratado i alteracion tirotropina hormona estimulante tiroides",
+                "carcinoma mucosa yugal izquierda vista endocrino nodulos tiroideos presenta adenopatia latera cervical izquierda solicito ecografia preferente",
+                "asimetria tamaño lobulos tiroideos tamaño lobulo tiroideo izquierdo nodulo 36mms encrucijada lobulo tiroideo derechomargen lateral derecho istmo borde pequeño nodulo solido ecogenico tirads 3 54 x 34 milimetros",
+                "bmn nodulos t4 vigilancia",
+                "paciente 78 años bmn ecografia enero 23 bocio multinodular aumento significativo glandula tiroidea lobulos tiroideos extienden desfiladero cervicotoracico discreto crecimiento endotoracico desestructuracion parenquima glandular expensas multiplesincontables nodulos confluentes lobulo tiroideo derecho nodulos heterogeneos tirada 3 predominio solido calcificaciones groseras 135 x 157 milimetros nodulo caracteristicas tirada 3 margen lateral derecho istmolobulo tiroideo derecho 96 x 10 milimetros nodulo calcificacion periferica cascara huevo tirada 4 7 x 68 milimetros identifican calcificaciones groseras corresponder calcificaciones perifericas nodulares impiden valoracion s",
+                "lesion mejilla izquierda sospecha lipoma 8x4",
+                "paciente nodulos tiroideos seguimiento ultima ecografia diciembre 2022",
+                "mujer 78 ños bmn nodulo dominante tr45",
+                "paciente presenta bultoma region lateral cervical izquierdo meses evolucion exploracion sugiere quiste sebaceo",
+                "nodulo tr5 estable 1 centimetros revision previsible consulta oca25",
+                "paciente antecedentes quistes radiculares intervenidos 2023 tirotropina hormona estimulante tiroides 233 presenta aumento volumen bilateral 1 año evolucion adyacente glande submandibulares solicito descartar complicaciones saludo"
             ],
             "information_gain": {
-                "sala": 0.2996,
-                "prioridad": 0.1493
+                "especialidad": 0.2478,
+                "sala": 0.4811,
+                "prioridad": 0.3569
             }
         },
         "sospechadiag_limpio": {
-            "nunique": 4139,
-            "r_ratio": 0.5036,
+            "nunique": 5072,
+            "r_ratio": 0.4953,
             "technical_level": 3,
             "subclass": "discrete",
             "user_mandatory": false,
             "unique_pool": [
-                "",
-                "adenopatia nodulo tiroideo",
-                "impresion diagnostica lipoma",
-                "descartar etiologia patologia subcutanea",
-                "valorar lipoma",
-                "valoracion ultimato",
-                "patologia ganglionar",
-                "descartar alteraciones pared abdominal",
-                "bultoma cara muslo antecedente traumatico 2 meses",
-                "compatible hematoma encapsulado descartar outro tipo patoloxia",
-                "filiacion tumoracion",
-                "lipoma",
-                "solicito descartar patologia",
-                "idem",
-                "descartar adenopatias",
+                "hipertiroidismo",
+                "control",
+                "ecografia tiroidea control nodulos tr3 15 milimetros",
+                "bmn",
+                "ecografia seguimiento",
+                "control nodulos tiroideos",
+                "valorar nodulos",
+                "control nt tr325 milimetros",
+                "adenopatia",
+                "control bmn",
                 "control evolutivo",
-                "quiste lipoma",
-                "quiste sinovial antebrazo izquierdo",
-                "lipoma valorar relacion estructuras muscular vasos axilares",
-                "tumoracion indeterminada"
+                "nodulos tiroideos",
+                "control nodulo tiroideo tr45 15 milimetros",
+                "probable quiste sebaceo",
+                "nodulo tr5",
+                "",
+                "control tiroides multinodular hipermetabolismo lti tomografia emision positrones",
+                "antecedente carcinoma papilar tiroides",
+                "descartar patoloxia tiroidea",
+                "hipotiroidismo"
             ],
             "information_gain": {
-                "sala": 0.2793,
-                "prioridad": 0.1058
+                "especialidad": 0.2945,
+                "sala": 0.5147,
+                "prioridad": 0.3832
             }
         }
     },
     "target_dependency_matrix": {
-        "sala": {
+        "especialidad": {
+            "especialidad": 1.0,
             "sala": 1.0,
-            "prioridad": 0.0869
+            "prioridad": 1.0
+        },
+        "sala": {
+            "especialidad": 1.0,
+            "sala": 1.0,
+            "prioridad": 0.7675
         },
         "prioridad": {
-            "sala": 0.1059,
+            "especialidad": 1.0,
+            "sala": 0.7675,
             "prioridad": 1.0
         }
     },
     "orchestration_plan": {
-        "strategy": "HybridChain",
-        "order": [
-            "prioridad",
-            "sala"
-        ],
-        "max_dependency": 0.1059
+        "strategy": "GatedChain",
+        "order": [],
+        "max_dependency": 0.7675
     }
 }

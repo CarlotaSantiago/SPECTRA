@@ -271,26 +271,38 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
               <option value="RegressorChain">RegressorChain</option>
               <option value="MultiOutput">MultiOutput</option>
               <option value="HybridChain">HybridChain</option>
+              <option value="GatedChain">GatedChain</option>
             </select>
 
             <div style={orderList}>
-              {dossier?.data?.orchestration_plan?.order?.map((target: string, i: number) => (
-                <div key={target} style={orderItemEditable}>
-                  <span>{i + 1}. {target}</span>
-                  <div style={{display: 'flex', gap: '4px'}}>
-                    <button 
-                      onClick={() => moveOrderItem(i, 'up')} 
-                      disabled={i === 0}
-                      style={miniBtnStyle}
-                    ><ChevronUp size={14}/></button>
-                    <button 
-                      onClick={() => moveOrderItem(i, 'down')} 
-                      disabled={i === dossier.data.orchestration_plan.order.length - 1}
-                      style={miniBtnStyle}
-                    ><ChevronDown size={14}/></button>
+              {dossier?.data?.orchestration_plan?.order && dossier.data.orchestration_plan.order.length > 0 ? (
+                dossier.data.orchestration_plan.order.map((target: string, i: number) => (
+                  <div key={target} style={orderItemEditable}>
+                    <span>{i + 1}. {target}</span>
+                    <div style={{display: 'flex', gap: '4px'}}>
+                      <button 
+                        onClick={() => moveOrderItem(i, 'up')} 
+                        disabled={i === 0}
+                        style={miniBtnStyle}
+                      >
+                        <ChevronUp size={14}/>
+                      </button>
+                      <button 
+                        onClick={() => moveOrderItem(i, 'down')} 
+                        disabled={i === dossier.data.orchestration_plan.order.length - 1}
+                        style={miniBtnStyle}
+                      >
+                        <ChevronDown size={14}/>
+                      </button>
+                    </div>
                   </div>
+                ))
+              ) : (
+                // Mensaje que se mostrará si 'order' es undefined, null o está vacío
+                <div style={{ padding: '8px', color: '#666', fontStyle: 'italic', textAlign: 'center' }}>
+                  No hay un orden secuencial (Estrategia Condicional / GatedChain)
                 </div>
-              ))}
+              )}
             </div>
           </section>
 

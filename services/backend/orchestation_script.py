@@ -1,116 +1,95 @@
-### Orchestration Reasoning:
-Given the dataset's statistical profile and user constraints, the appropriate model selection is crucial. The targets "sala" and "prioridad" are both ordinal and nominal, respectively, with low dependency on each other. Therefore, we will use `ClassifierChain` to handle the multi-output scenario. For hyperparameter tuning, Bayesian Optimization is selected as it balances performance and interpretability effectively.
-
-### Python Code:
-```python
 import pandas as pd
-from sklearn.model_selection import StratifiedKFold, cross_val_predict
 from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from xgboost import XGBClassifier, XGBRegressor
-from lightgbm import LGBMClassifier, LGBMRegressor
-from catboost import CatBoostClassifier, CatBoostRegressor
-from sklearn.multioutput import MultiOutputClassifier, MultiOutputRegressor
+from sklearn.model_selection import StratifiedKFold, cross_val_predict, GridSearchCV
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import f1_score, accuracy_score, cohen_kappa_score, log_loss
-import joblib
-from skopt.space import Integer, Real
+from joblib import dump
+import xgboost as xgb
+
+# Load dataset (assuming it's already loaded into a DataFrame called df)
+# X = df.drop('target', axis=1)
+# y = df['target']
+
+# Define the chain strategy
+chain_strategy = {
+    'strategy': ['especialidad', 'sala', 'prioridad'],
+    'dependency': [('sala', 'especialidad'), ('prioridad', 'sala')]
+}
+
+# Initialize models and parameters
+models = {}
+params = {}
+
+# especialidad (NOMINAL, 4 classes)
+models['especialidad'] = RandomForestClassifier()
+params['especialidad'] = {
+    'n_estimators': [50, 100, 200],
+    'max_depth': [None, 10, 20, 30]
+}
+
+# sala (NOMINAL, 2 classes)
+models['sala'] = LogisticRegression(max_iter=1000)
+params['sala'] = {
+    'C': [0.01, 0.1, 1, 10],
+    'penalty': ['l1', 'l2']
+}
+
+# prioridad (ORDINAL, 3 classes)
+models['prioridad'] = GradientBoostingClassifier()
+params['prioridad'] = {
+    'n_estimators': [50, 100, 200],
+    'max_depth': [None, 10, 20, 30]
+}
+
+# Initialize the HybridChain
 from skopt import BayesSearchCV
 
-# Load data
-data = pd.read_csv('data.csv')
+chain_models = {}
+for target in chain_strategy['strategy']:
+    if models[target].__module__.startswith('sklearn'):
+        cv_model = GridSearchCV(models[target], params[target], cv=StratifiedKFold(n_splits=10), scoring='accuracy')
+    elif models[target].__module__.startswith('xgboost'):
+        cv_model = BayesSearchCV(models[target], params[target], n_iter=50, cv=StratifiedKFold(n_splits=10), verbose=2, n_jobs=-1)
+    chain_models[target] = cv_model
 
-# Split features and target
-X = data.drop(columns=['sala', 'prioridad'])
-y_sala = data['sala']
-y_prioridad = data['prioridad']
+# Fit the HybridChain
+X_train = df.drop('target', axis=1)
+y_train = df['target']
 
-# Feature selection
-selector = SelectKBest(score_func=f_classif, k=int(X.shape[1] * (1 - feature_selection_threshold)))
-X_selected = selector.fit_transform(X, y_sala)
+for target in chain_strategy['strategy']:
+    if target == 'especialidad':
+        y_target = y_train[y_train.index % 2 == 0]
+    elif target == 'sala':
+        y_target = y_train[(y_train.index % 2 == 1) & (y_train.index % 3 != 0)]
+    else:
+        y_target = y_train[y_train.index % 3 == 0]
 
-# Define preprocessing steps
-numeric_features = X_selected.select_dtypes(include=['float64', 'int64']).columns
-categorical_features = X_selected.select_dtypes(include=['object']).columns
+    X_target = X_train[X_train.index.isin(y_target.index)]
+    
+    if chain_strategy['dependency'] and any(dependency[0] == target for dependency in chain_strategy['dependency']):
+        parent_model_name, _ = next((d for d in chain_strategy['dependency'] if d[1] == target), None)
+        parent_model_fit = chain_models[parent_model_name].best_estimator_.predict(X_train[X_train.index.isin(y_target.index)])
+        X_target = pd.concat([X_target.reset_index(drop=True), pd.Series(parent_model_fit, name=parent_model_name)], axis=1)
+    
+    chain_models[target].fit(X_target, y_target)
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        ('num', StandardScaler(), numeric_features),
-        ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_features)
-    ])
+# Save models
+for target in chain_strategy['strategy']:
+    dump(chain_models[target], f'model_{target}.joblib')
 
-# Define models
-xgb_clf = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')
-lgbm_clf = LGBMClassifier()
-catboost_clf = CatBoostClassifier(verbose=0)
-
-# Define hyperparameter search spaces
-param_space_xgb = {
-    'classifier__max_depth': Integer(3, 12),
-    'classifier__n_estimators': Integer(50, 200),
-    'classifier__learning_rate': Real(0.01, 0.3)
-}
-
-param_space_lgbm = {
-    'classifier__max_depth': Integer(3, 12),
-    'classifier__n_estimators': Integer(50, 200),
-    'classifier__learning_rate': Real(0.01, 0.3)
-}
-
-param_space_catboost = {
-    'classifier__depth': Integer(3, 12),
-    'classifier__iterations': Integer(50, 200),
-    'classifier__learning_rate': Real(0.01, 0.3)
-}
-
-# Define pipelines
-pipeline_sala = Pipeline([
-    ('preprocessor', preprocessor),
-    ('classifier', MultiOutputClassifier(XGBClassifier(use_label_encoder=False, eval_metric='mlogloss')))
-])
-
-pipeline_prioridad = Pipeline([
-    ('preprocessor', preprocessor),
-    ('classifier', MultiOutputRegressor(XGBRegressor()))
-])
-
-# Define ensemble pipeline
-ensemble_pipeline_sala = Pipeline([
-    ('preprocessor', preprocessor),
-    ('classifier', MultiOutputClassifier(VotingClassifier(estimators=[('xgb', XGBClassifier(use_label_encoder=False, eval_metric='mlogloss'))], voting='soft')))
-])
-
-ensemble_pipeline_prioridad = Pipeline([
-    ('preprocessor', preprocessor),
-    ('classifier', MultiOutputRegressor(StackingRegressor(estimators=[('xgb', XGBRegressor())], final_estimator=XGBRegressor())))
-])
-
-# Define search strategies
-search_sala = BayesSearchCV(ensemble_pipeline_sala, param_space_xgb, n_iter=max_trials, cv=StratifiedKFold(n_splits=cv_strategy['folds']), verbose=0, n_jobs=-1)
-search_prioridad = BayesSearchCV(ensemble_pipeline_prioridad, param_space_lgbm, n_iter=max_trials, cv=StratifiedKFold(n_splits=cv_strategy['folds']), verbose=0, n_jobs=-1)
-
-# Fit models
-search_sala.fit(X_selected, y_sala)
-search_prioridad.fit(X_selected, y_prioridad)
-
-# Print best parameters and metrics
-print("Best Parameters for Sala:", search_sala.best_params_)
-print("Best Parameters for Prioridad:", search_prioridad.best_params_)
-
-# Evaluate on validation set
-y_pred_sala = cross_val_predict(search_sala, X_selected, y_sala, cv=cv_strategy['folds'], method='predict')
-y_pred_prioridad = cross_val_predict(search_prioridad, X_selected, y_prioridad, cv=cv_strategy['folds'], method='predict')
-
-print("Validation Metrics for Sala:")
-print(f"F1-Score: {f1_score(y_sala, y_pred_sala, average='macro')}")
-print(f"Accuracy: {accuracy_score(y_sala, y_pred_sala)}")
-
-print("Validation Metrics for Prioridad:")
-print(f"Kappa: {cohen_kappa_score(y_prioridad, y_pred_prioridad)}")
-print(f"Log-Loss: {log_loss(y_prioridad, search_prioridad.classes_, y_pred_prioridad)}")
-
-# Save the final model and preprocessor
-joblib.dump(search_sala.best_estimator_, 'model_final.joblib')
-joblib.dump(preprocessor, 'preprocessor.joblib')
-```
+# Print final summary with best params and validation metrics
+for target in chain_strategy['strategy']:
+    print(f"Model: {target}")
+    print("Best Parameters:", chain_models[target].best_params_)
+    if 'accuracy' in chain_strategy['targets'][target]['priority_metrics']:
+        y_pred = cross_val_predict(chain_models[target], X_train, y_train[y_train.index.isin(y_target.index)], cv=StratifiedKFold(n_splits=10))
+        print(f"Validation Accuracy: {accuracy_score(y_train[y_train.index.isin(y_target.index)], y_pred)}")
+    if 'F1-Score' in chain_strategy['targets'][target]['priority_metrics']:
+        y_pred = cross_val_predict(chain_models[target], X_train, y_train[y_train.index.isin(y_target.index)], cv=StratifiedKFold(n_splits=10))
+        print(f"Validation F1-Score: {f1_score(y_train[y_train.index.isin(y_target.index)], y_pred, average='macro')}")
+    if 'Kappa' in chain_strategy['targets'][target]['priority_metrics']:
+        y_pred = cross_val_predict(chain_models[target], X_train, y_train[y_train.index.isin(y_target.index)], cv=StratifiedKFold(n_splits=10))
+        print(f"Validation Kappa: {cohen_kappa_score(y_train[y_train.index.isin(y_target.index)], y_pred)}")
+    if 'Log-Loss' in chain_strategy['targets'][target]['priority_metrics']:
+        y_pred = cross_val_predict(chain_models[target], X_train, y_train[y_train.index.isin(y_target.index)], cv=StratifiedKFold(n_splits=10))
+        print(f"Validation Log-Loss: {log_loss(y_train[y_train.index.isin(y_target.index)], y_pred)}")

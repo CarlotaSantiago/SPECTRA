@@ -1,6 +1,6 @@
 # DATASET_CONTEXT
 rows: 8219	| features: 5
-target_correlation:   '{type: HybridChain, dependency: Low, p_value: 0.1059 }'
+target_correlation:   '{type: HybridChain, dependency: Low, p_value: 0.1 }'
 
 # USER_INTERFACE_CONSTRAINTS
 cv_strategy: '{'strategy': StratifiedKFold, 'folds': 10}'
@@ -10,10 +10,15 @@ optimization_priority: ['Performance', 'Interpretability']
 
 # TARGET_STRATEGY_DOSSIER
 targets:
-	- name: sala:
+	- name: especialidad:
 	- type: NOMINAL
 	- dependency: Low (linked to prioridad)
 	- priority_metrics: ['F1-Score', 'Accuracy']
+
+	- name: sala:
+	- type: NOMINAL
+	- dependency: Low (linked to prioridad)
+	- priority_metrics: ['Kappa', 'Log-Loss']
 
 	- name: prioridad:
 	- type: ORDINAL

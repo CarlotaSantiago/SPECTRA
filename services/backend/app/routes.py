@@ -3,6 +3,7 @@ import io
 import json
 import logging
 import os
+import subprocess
 
 import numpy as np
 import pandas as pd
@@ -260,16 +261,17 @@ def process_state_1(data: Dossier):
             contenido = json.load(f)
         json_tecnico = integrar_analisis_llm(contenido, semantic_analysis)
         json_tecnico.update(dossier)
-
         df_for_matrix = df.sample(n=min(10000, len(df)), random_state=42) if len(df) > 0 else df
         matriz = compute_target_dependency_matrix(df_for_matrix, data.targets, json_tecnico["targets_evaluation"])
-        orquestation = build_chain_strategy(matriz, json_tecnico["targets_evaluation"], threshold=0.05)
+        threshold_config = getattr(data, 'threshold_cfg', 'auto')
+        orquestation = build_chain_strategy(df, matriz, json_tecnico["targets_evaluation"], threshold_config, json_tecnico)
         matrix_dict = matriz.to_dict(orient='index')
         json_tecnico["target_dependency_matrix"] = matrix_dict
+        max_dep = float(matriz.where(matriz < 1.0).max().max())
         json_tecnico["orchestration_plan"] = {
             "strategy": orquestation['strategy'],
-            "order": orquestation['order'],
-            "max_dependency": orquestation['max_dependency']
+            "order": orquestation['order'] if orquestation.get('order') is not None else [],
+            "max_dependency": max_dep
         }
         with open("toon_dossier.json", "w", encoding="utf-8") as f:
             json.dump(json_tecnico, f, indent=4, ensure_ascii=False)
@@ -285,10 +287,38 @@ def process_state_1(data: Dossier):
             "message": str(e)
         }
 
+
+
+# --- CONFIGURACIÓN DE REPARACIÓN ---
+MAX_ATTEMPTS = 3
+UNRECOVERABLE_ERRORS = ["MemoryError", "CUDA out of memory", "SystemExit", "OSError: [Errno 28]"]
+
+def run_script_in_sandbox(script_content: str):
+    """
+    Ejecuta el script generado y captura el error si existe.
+    """
+    filename = "temp_execution_script.py"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(script_content)
+    
+    # Ejecutamos el script. Asegúrate de que 'data.csv' esté en la misma carpeta
+    result = subprocess.run(
+        ["python", filename], 
+        capture_output=True, 
+        text=True,
+        timeout=600 # O el tiempo que definas en tu dossier
+    )
+    return result
+
+def is_unrecoverable(stderr: str) -> bool:
+    return any(err in stderr for err in UNRECOVERABLE_ERRORS)
+
+
 @router.post("/process-state2")
 def process_state_2(data: Dict[str, Any]):
     try:
         dossier = data["dossier"]
+        model = data["model"]
         orchestrator_system_prompt = """ 
             You are the Master Pipeline Orchestrator, a Senior Lead Data Scientist.  
             Your goal is to generate a professional, high-performance, and 
@@ -323,7 +353,7 @@ def process_state_2(data: Dict[str, Any]):
             """ 
         typo_correlation = dossier["orchestration_plan"]["strategy"]
         max_dependency = dossier["orchestration_plan"]["max_dependency"]
-        dependency = "High" if max_dependency > 0.15 else "Low"
+        dependency = "High" if (isinstance(max_dependency, (int, float)) and max_dependency > 0.15) else "Low"
         for target, info in dossier["targets_evaluation"].items():
             dependencies = dossier["target_dependency_matrix"][target]
             for dep_target, dep_value in dependencies.items():
@@ -334,11 +364,85 @@ def process_state_2(data: Dict[str, Any]):
         toon = build_toon_s2(dossier, typo_correlation, max_dependency, dependency, dossier["targets_evaluation"])
         user_prompt = f"Please orchestrate the training pipeline for the following dossier:\n\n{toon}"
         orchestation_script = call_ollama(data["model"], orchestrator_system_prompt, user_prompt, state=2)
+        if "```python" in orchestation_script:
+            orchestation_script = orchestation_script.split("```python")[1].split("```")[0].strip()
+
         with open("orchestation_script.py", "w", encoding="utf-8") as f:
             f.write(orchestation_script) 
+
+        for attempt in range(1, MAX_ATTEMPTS + 1):
+            print(f"--- Intento de ejecución {attempt} ---")
+            execution_result = run_script_in_sandbox(orchestation_script)
+
+            if execution_result.returncode == 0:
+                with open("orchestation_script.py", "a", encoding="utf-8") as f:
+                    f.write(f"\n# --- EJECUCIÓN EXITOSA EN INTENTO {attempt}     ---\n")
+                    f.write(execution_result.stdout)
+                return {"status": "ok", "script": orchestation_script, "output": execution_result.stdout}
+            
+            # Si falla, comprobamos si es un error fatal (Memoria/Sistema)
+            if any(err in execution_result.stderr for err in UNRECOVERABLE_ERRORS):
+                return {
+                    "status": "UNRECOVERABLE_ERROR",
+                    "reason": "Hardware/System limits reached (OOM/Disk Full)."
+                }
+
+            self_healing_system_prompt = """
+                You are the Master Pipeline Orchestrator in DEBUG MODE.  
+                Your previous code failed, and you must now act as a Senior Debugger. 
+                INSTRUCTIONS: 
+                1. Analyze the 'Error Log' provided by the user. 
+                2. Identify the root cause (missing import, shape mismatch, deprecated 
+                API, etc.). 
+                3. Cross-reference with the ORIGINAL DOSSIER to ensure business logic 
+                is still intact. 
+                4. Output the COMPLETE corrected script. 
+                CRITICAL EXECUTION RULES: - Minimal Fix Priority: Fix ONLY what the error log explicitly points 
+                to.  
+                Do NOT rewrite architecture unless the error is structural. 
+                Unnecessary  
+                rewrites introduce new bugs. - Attempt Awareness: You will be told which attempt number this is. 
+                On attempt 2+, prioritize minimal changes over architectural 
+                rewrites. - Unrecoverable Errors: If the error is MemoryError, SystemExit, CUDA 
+                OOM,  
+                or disk full (OSError Errno 28), do NOT attempt a fix. Return the 
+                token  
+                UNRECOVERABLE_ERROR on the first line, followed by a one-line 
+                explanation. - Hybrid Leakage Prevention: In HybridChain pipelines, NEVER call 
+                predict()  
+                or predict_proba() on the full training set to generate 
+                meta-features.  
+                ALWAYS use cross_val_predict() with the same CV strategy defined in 
+                the  
+                dossier. This is mandatory to prevent target leakage between stages. - Leakage Prevention: Use Scikit-Learn Pipelines for all 
+                transformations  
+                and model fits. Never fit the preprocessor outside of a Pipeline. - Self-Contained: The script must assume the data is in 'data.csv'. - Model Persistence: The script MUST include a final block using joblib 
+                to save: - Each trained model as 'model_{target_name}.joblib' - Each preprocessing transformer as 'preprocessor_stage{N}.joblib' - Final Logging: Include a print() summary at the end showing: - The attempt number - The root cause identified - The fix applied - The final metrics on the validation set 
+                OUTPUT RULES: - Do not apologize. - Do not explain the fix unless it is a critical architecture change. - Return ONLY the corrected Python code block. - Ensure all necessary imports are at the top of the script. """
+
+            repair_prompt = f"""
+                ATTEMPT {attempt} of {MAX_ATTEMPTS - 1} repair attempts remaining.
+                
+                ERROR LOG: 
+                {execution_result.stderr}
+                
+                ORIGINAL CODE: 
+                {orchestation_script}
+                
+                ORIGINAL DOSSIER: 
+                {dossier}
+                
+                Fix ONLY what the error log points to.
+                Return ONLY the Python code.
+                """
+            orchestation_script = call_ollama(model, self_healing_system_prompt, repair_prompt, state=2)
+            # Limpieza de formato para asegurar que solo tenemos código Python
+            if "```python" in orchestation_script:
+                orchestation_script = orchestation_script.split("```python")[1].split("```")[0].strip()
+        
         return {
-            "status": "ok",
-            "received_data": orchestation_script
+            "status": "failed",
+            "last_error": execution_result.stderr
         }
     except Exception as e:
         logger.error(f"process_state_2 failed: {e}")

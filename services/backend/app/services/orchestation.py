@@ -1,167 +1,174 @@
 import pandas as pd
 import numpy as np
 from scipy.stats import chi2_contingency, spearmanr, kruskal
-import itertools
-from app.services.classify import classify_data, compute_information_gain, compute_information_gain_targets, encode_series
 
 def compute_target_dependency_matrix(df, targets, col_types):
-    matrix = pd.DataFrame(0.0, index=targets, columns=targets)
+    # 1. Inicialización en 1.0 según el documento base (Pág. 15)
+    matrix = pd.DataFrame(1.0, index=targets, columns=targets)
+    
+    # 2. Bucle indexado de forma triangular simétrica estricto (Pág. 15)
+    for i, t1 in enumerate(targets):
+        for t2 in targets[i+1:]:
+            
+            # Obtención limpia del nivel técnico desde la metadata del dossier
+            type1 = col_types.get(t1).get('technical_level') if isinstance(col_types.get(t1), dict) else col_types.get(t1)
+            type2 = col_types.get(t2).get('technical_level') if isinstance(col_types.get(t2), dict) else col_types.get(t2)
+            
+            score = 0.0
 
-    # PARA CADA par (t1, t2) en todas las combinaciones posibles de targets
-    for t1, t2 in itertools.permutations(targets, 2):
-        
-        # NUEVO ENFOQUE: USAR INFORMATION GAIN
-        temp_df = df[[t1, t2]].dropna()
-        if temp_df.empty:
-            continue
+            # CASO A: Ambos son categóricos (Pág. 15)
+            if type1 in [1, 2] and type2 in [1, 2]:
+                score = calculate_cramers_v(df[t1], df[t2])
+                if score < 0.10: score = 0.0
 
-        t1_discrete = col_types.get(t1) in [1, 2]
+            # CASO B: Ambos son numéricos (Pág. 16 - Correlación de Spearman)
+            elif type1 in [3, 4] and type2 in [3, 4]:
+                res = spearmanr(df[t1], df[t2])
+                coef = res.statistic if hasattr(res, 'statistic') else res[0]
+                score = abs(coef) if not pd.isna(coef) else 0.0
+                if score < 0.30: score = 0.0
 
-        try:
+            # CASO C: Mixto (Pág. 16 - Razón de Correlación Eta al cuadrado)
+            else:
+                if type1 in [1, 2]:
+                    cat_col, num_col = t1, t2
+                else:
+                    cat_col, num_col = t2, t1
+                score = calculate_eta_squared(df, cat_col, num_col)
+                if score < 0.06: score = 0.0
 
-            score = compute_information_gain_targets(df, t1, t2, col_types, t1_discrete, device=None)
-            print(f"Información mutua entre {t1} y {t2}: {score}")
+            # Asignación simétrica de la celda evaluada
             matrix.loc[t1, t2] = round(score, 4)
-
-        except Exception as e:
-            print(f"Error al calcular dependencia entre {t1} y {t2}: {e}")
-
-            # type1 = col_types.get(t1)
-            # type2 = col_types.get(t2)
-            # score = 0.0
-
-            # # CASO A: Ambos son categóricos
-            # if type1 in [1,2] and type2 in [1,2]:
-            #     score = calculate_cramers_v(df[t1], df[t2])
-
-            # # CASO B: Ambos son numéricos
-            # elif type1 in [3,4] and type2 in [3,4]:
-            #     coef, _ = spearmanr(df[t1], df[t2])
-            #     score = abs(coef)  # score ∈ [0, 1]
-
-            # # CASO C: Mixto (uno categórico y otro numérico)
-            # else:
-            #     if type1 in [1, 2]:
-            #         cat_col, num_col = t1, t2
-            #     else:
-            #         cat_col, num_col = t2, t1
-            #     score = calculate_eta_squared(df, cat_col, num_col)
-            # # Guardar score en matrix[t1][t2] y matrix[t2][t1] ← es simétrica
-            # matrix.loc[t1, t2] = round(score, 4)
-            # matrix.loc[t2, t1] = round(score, 4)
-    # Rellenar diagonal con 1.0
-    for t in targets:
-        matrix.loc[t, t] = 1.0
-
+            matrix.loc[t2, t1] = round(score, 4)
+            
     return matrix
 
-# --- FUNCIONES AUXILIARES DE NORMALIZACIÓN ---
-
-# def calculate_cramers_v(x, y):
-#     confusion_matrix = pd.crosstab(x, y)
-#     if confusion_matrix.empty: return 0.0
-#     chi2 = chi2_contingency(confusion_matrix)[0]
-#     n = confusion_matrix.sum().sum()
-#     r, k = confusion_matrix.shape
-#     return np.sqrt(chi2 / (n * min(r-1, k-1))) if n > 0 and min(r-1, k-1) > 0 else 0.0
-
-# def calculate_eta_squared(df, cat_col, num_col):
-#     # 1. Creamos una copia local solo con las columnas necesarias
-#     # 2. Forzamos la columna numérica a serlo (convirtiendo "" en NaN)
-#     temp_df = df[[cat_col, num_col]].copy()
-#     temp_df[num_col] = pd.to_numeric(temp_df[num_col], errors='coerce')
-    
-#     # 3. Eliminamos filas donde el número o la categoría sean nulos/vacíos
-#     # (El fillna("") previo se convierte aquí en NaN gracias a pd.to_numeric)
-#     temp_df = temp_df.dropna(subset=[num_col])
-#     temp_df = temp_df[temp_df[cat_col].astype(str).str.strip() != ""]
-
-#     # 4. Agrupamos
-#     groups = [group[num_col].values for name, group in temp_df.groupby(cat_col)]
-    
-#     # Validaciones de seguridad
-#     if len(groups) < 2: 
-#         return 0.0
-    
-#     # Verificamos que todos los grupos tengan al menos un valor
-#     groups = [g for g in groups if len(g) > 0]
-#     if len(groups) < 2:
-#         return 0.0
-
-#     try:
-#         # Kruskal-Wallis H-test
-#         h_stat, _ = kruskal(*groups)
+def calculate_cramers_v(x, y) -> float:
+    tabla = pd.crosstab(x, y)     
+    if tabla.empty: return 0.0
+    r, c  = tabla.shape     
+    if r <= 1 or c <= 1: return 0.0
         
-#         # Eta² normalizado: (H - k + 1) / (n - k)
-#         n = len(temp_df)
-#         k = len(groups)
-        
-#         if n == k: return 0.0 # Evitar división por cero
-        
-#         eta_sq = (h_stat - k + 1) / (n - k)
-#         return max(0.0, min(float(eta_sq), 1.0)) 
+    chi2, _, _, _ = chi2_contingency(tabla)
+    n = tabla.sum().sum()     
+    if n == 0: return 0.0
+    phi2 = chi2 / n     
+    denom = min(r - 1, c - 1)
+    return np.sqrt(phi2 / denom) if denom > 0 else 0.0
+
+def calculate_eta_squared(df, cat_col, num_col) -> float:
+    temp_df = df[[cat_col, num_col]].copy()
+    temp_df[num_col] = pd.to_numeric(temp_df[num_col], errors='coerce')
+
+    temp_df = temp_df.dropna(subset=[num_col])
+    temp_df = temp_df[temp_df[cat_col].astype(str).str.strip() != ""]
+
+    if temp_df.empty: return 0.0
     
-#     except Exception as e:
-#         print(f"Error en Kruskal-Wallis entre {cat_col} y {num_col}: {e}")
-#         return 0.0
-    
+    groups = [group[num_col].values for name, group in temp_df.groupby(cat_col)]
+    groups = [g for g in groups if len(g) > 0]
+    if len(groups) < 2: return 0.0
+
+    try:
+        h_stat, _ = kruskal(*groups)
+        n = len(temp_df)
+        if n <= 1: return 0.0  
+
+        eta_sq = h_stat / (n - 1)
+        return max(0.0, min(float(eta_sq), 1.0))
+    except Exception:
+        return 0.0
+
+def compute_threshold(matrix: pd.DataFrame, threshold_cfg) -> float:
+    scores = matrix.values[~np.eye(len(matrix), dtype=bool)] 
+    if len(scores) == 0: return 0.10
+    if threshold_cfg == 'auto':   
+        return float(np.median(scores) + np.std(scores))
+    return float(threshold_cfg)
+
+def detect_structural_absences(df: pd.DataFrame, targets: list[str], umbral: float = 0.95) -> dict | None:     
+    # Detección limpia de ausencias estructurales (MNAR)
+    for t1 in targets: 
+        mask = df[t1].isna() | (df[t1].astype(str).str.strip().isin(['OTHER', 'otros', 'NaN', 'nan', '']))
+        if mask.sum() == 0:             
+            continue           
+        dependents = [ 
+            t2 for t2 in targets             
+            if t2 != t1 and (df.loc[mask, t2].isna() | df.loc[mask, t2].astype(str).str.strip().isin(['NaN', 'nan', ''])).mean() >= umbral         
+        ]         
+        if dependents:             
+            return {'gating': t1, 'dependents': dependents}     
+    return None
+
 def resolve_chain_order(dependency_matrix, threshold):
-    """
-    Calcula qué target tiene más peso/influencia sobre los demás
-    para determinar quién va primero en la cadena.
-    """
     influence_scores = {}
     targets = dependency_matrix.columns.tolist()
 
     for t in targets:
-        # Sumamos los scores de la fila de 't', pero:
-        # 1. Ignoramos la diagonal (donde t == t, que es 1.0)
-        # 2. Ignoramos scores por debajo del threshold
         row_scores = dependency_matrix.loc[t]
-        
-        # Filtramos la diagonal y el umbral
         filtered_scores = [
-            score for label, score in row_scores.items() 
+            score for label, score in row_scores.items()
             if label != t and score >= threshold
         ]
-        
         influence_scores[t] = sum(filtered_scores)
 
-    # Ordenar targets de MAYOR a MENOR influence_score
-    # En caso de empate, Python mantiene el orden original
-    sorted_order = sorted(influence_scores, key=influence_scores.get, reverse=True)
-    
-    return sorted_order
+    return sorted(influence_scores, key=influence_scores.get, reverse=True)
 
-def build_chain_strategy(dependency_matrix, col_types, threshold=0.15):
-    """
-    Decide la arquitectura final del modelo y el orden de ejecución.
-    """
-    # Extraer valores fuera de la diagonal para encontrar la dependencia máxima
-    targets = dependency_matrix.columns.tolist()
-    mask = ~np.eye(dependency_matrix.shape[0], dtype=bool)
-    max_dependency = dependency_matrix.values[mask].max()
-    # SI la dependencia máxima es muy baja, no merece la pena encadenar
-    if max_dependency < threshold:
+def build_chain_strategy(df, matrix, tipos, threshold_cfg, toon_dossier) -> dict:
+    targets = matrix.index.tolist()
+    threshold = compute_threshold(matrix, threshold_cfg)
+    
+    max_dep = float(matrix.where(matrix < 1.0).max().max()) if len(targets) > 1 else 0.0
+    if pd.isna(max_dep): max_dep = 0.0
+    
+    # 1. Control de ausencias estructurales estructural (Pág. 18)
+    gated = detect_structural_absences(df, targets)
+    if gated:
+        subset_df = df[df[gated['gating']].notna()]
+        sub_matrix = compute_target_dependency_matrix(subset_df, gated['dependents'], tipos)
+        
+        # RETORNO EXACTO SEGÚN PÁGINA 18 (Sin clave 'order' artificial en la raíz)
         return {
-            "strategy": "MultiOutput",
-            "order": targets,
-            "max_dependency": f"Baja dependencia detectada (max: {max_dependency})"
+            'strategy':     'GatedChain',             
+            'gating':       gated['gating'],             
+            'dependents':   gated['dependents'], 
+            'max_dependency': max_dep,         
+            'sub_strategy': build_chain_strategy(                 
+                subset_df, sub_matrix, tipos, threshold_cfg, toon_dossier
+            )
         }
 
-    # Obtener el orden óptimo
-    order = resolve_chain_order(dependency_matrix, threshold)
-    # Determinar el tipo de cadena basado en los col_types de los targets
-    target_types = [col_types.get(t) for t in order]
-    if all(t_type in [1, 2] for t_type in target_types):
-        strategy = "ClassifierChain"
-    elif all(t_type in [3, 4] for t_type in target_types):
-        strategy = "RegressorChain"
-    else:
-        strategy = "HybridChain"
+    # 2. Objetivos independientes
+    if max_dep < threshold:
+        return {'strategy': 'MultiOutput', 'order': targets, 'max_dependency': max_dep}
 
-    return {
-        "strategy": strategy,
-        "order": order,
-        "max_dependency": max_dependency
-    }
+    order = resolve_chain_order(matrix, threshold)
+    get_lvl = lambda t: tipos.get(t).get('technical_level') if isinstance(tipos.get(t), dict) else tipos.get(t)
+
+    todos_cat = all(get_lvl(t) in (1, 2) for t in targets)
+    todos_num = all(get_lvl(t) in (3, 4) for t in targets)
+ 
+    # 3. Regressor Chain
+    if todos_num:
+        return {'strategy': 'RegressorChain',  'order': order, 'max_dependency': max_dep}
+
+    # 4. Classifier Chain
+    if todos_cat:
+        semantic = toon_dossier.get('semantic_classification', {})
+        target_profiles = {
+            t: {
+                'subclass':  semantic.get(t, {}).get('subclass', 'NOMINAL'),         
+                'n_classes': int(df[t].nunique()),
+                'mapping':   semantic.get(t, {}).get('mapping', None)         
+            }
+            for t in order
+        }
+        return {
+            'strategy':   'ClassifierChain',             
+            'order':       order,             
+            'target_profiles': target_profiles,
+            'max_dependency': max_dep
+        }
+
+    # 5. Hybrid Chain (Fallback)
+    return {'strategy': 'HybridChain', 'order': order, 'max_dependency': max_dep}
