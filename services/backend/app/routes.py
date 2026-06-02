@@ -24,6 +24,7 @@ from app.services.build_toon import build_toon_payload, build_toon_s2, integrar_
 from app.services.strarified_sampling import stratified_sample_100
 from app.services.orchestation import build_chain_strategy, compute_target_dependency_matrix
 from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
+from app.services.resolve_search import resolve_search_strategy, DEFAULT_SEARCH_SPACES
 
 logger = logging.getLogger(__name__)
 
@@ -277,6 +278,8 @@ def process_state_1(data: Dossier):
             json.dump(json_tecnico, f, indent=4, ensure_ascii=False)
         return {
             "status": "ok",
+            "path": data.path,
+            "extension": os.path.splitext(data.path)[1],
             "data": json_tecnico
         }
 
@@ -319,37 +322,85 @@ def process_state_2(data: Dict[str, Any]):
     try:
         dossier = data["dossier"]
         model = data["model"]
+
+        # =========================================================================
+        # INYECCIÓN DEL PASO 3: ESPACIOS DE BÚSQUEDA Y HEURÍSTICA DE ESTRATEGIA ("auto")
+        # =========================================================================
+        # 1. Resolvemos la estrategia real (grid, random, optuna) basándonos en el dossier
+        search_resolution = resolve_search_strategy(dossier)
+        
+        # 2. Aseguramos que la estructura interna exista para no arrojar KeyError
+        if "global_metadata" not in dossier:
+            dossier["global_metadata"] = {}
+        if "search_config" not in dossier["global_metadata"]:
+            dossier["global_metadata"]["search_config"] = {
+                "max_iter": 50, "max_combinations": 200, "cv_folds": 10, "timeout_minutes": 30
+            }
+            
+        # 3. Mutamos la propiedad 'search_strategy' de "auto" a la seleccionada estadísticamente
+        dossier["global_metadata"]["search_config"]["search_strategy"] = search_resolution["selected_strategy"]
+        dossier["global_metadata"]["search_config"]["resolution_reasoning"] = search_resolution["reasoning"]
+        
+        # 4. Adjuntamos los espacios de búsqueda base estructurados para que Ollama sepa los rangos exactos
+        dossier["base_hyperparameter_spaces"] = DEFAULT_SEARCH_SPACES
+        # =========================================================================
         orchestrator_system_prompt = """ 
             You are the Master Pipeline Orchestrator, a Senior Lead Data Scientist.  
-            Your goal is to generate a professional, high-performance, and 
-            IMMEDIATELY EXECUTABLE Python script for model training. 
+            
+            Your goal is to generate a professional, high-performance, and IMMEDIATELY 
+            EXECUTABLE Python script for model training. 
             
             DIVISION OF RESPONSIBILITIES:     
-            The dossier already contains 'chain_strategy' with the structural 
-            pipeline    decision (ClassifierChain, RegressorChain, HybridChain, 
-            GatedChain, MultiOutput).    YOUR responsibility is to decide the MODELS 
-            and METRICS for each target. 
+            The dossier already contains 'chain_strategy' with the structural pipeline    
+            decision (ClassifierChain, RegressorChain, HybridChain, GatedChain, 
+            MultiOutput).    YOUR responsibility is to decide the MODELS and METRICS for 
+            each target. 
             
             RESPONSIBILITIES:       
-            1. Read 'chain_strategy.target_profiles' for each target:          
+            1. DATA LOADING: Locate the '#LOCATION DATAFRAME' section in the user prompt/dossier.
+               Extract the specified 'path' and 'extension_file'. Your generated script MUST 
+               load the dataset dynamically utilizing the correct pandas reader function corresponding 
+               to that extension (e.g., pd.read_csv for csv, pd.read_excel for xlsx, pd.read_parquet for parquet).
+               Do NOT hardcode 'data.csv' if the dossier specifies another target path or format.
+            2. Read 'chain_strategy.target_profiles' for each target:          
                 - subclass: NOMINAL or ORDINAL          
                 - n_classes: number of unique classes          
                 - mapping: ordinal encoding if applicable          
-                Select the most appropriate model and evaluation metric based on 
-            these facts.       
-            2. Implement the chain strategy exactly as specified in 
+                Select the most appropriate model and evaluation metric based on these 
+            facts.       
+            3. Implement the chain strategy exactly as specified in 
             'chain_strategy.strategy'.          
                 Do NOT change the strategy or execution order.       
-            3. HybridChain / GatedChain: ALWAYS use cross_val_predict() —          
-                NEVER call predict() or predict_proba() on the full training set.    
-            4. Use the search_type specified in the dossier for hyperparameter 
-            tuning.       
-            5. Save each model as model_{target}.joblib using joblib.       
-            6. Print final summary with best params and validation metrics.     
+            4. HybridChain / GatedChain: ALWAYS use cross_val_predict() —          
+                NEVER call predict() or predict_proba() on the full training set.         
+            5. Use the search_type specified in the dossier for hyperparameter tuning.      
+            6. Save each model as model_{target}.joblib using joblib.       
+            7. Print final summary with best params and validation metrics.     
             
-            OUTPUT RULES: 
-            - Provide a brief "Orchestration Reasoning" section. - Provide the Python Code block.  - Do not include any conversational text after the code. - Ensure all necessary imports (pandas, sklearn, joblib, etc.) are at 
-            the top of the generated script. 
+            HYPERPARAMETER SEARCH SPACE RULES: 
+            1. If the model EXISTS in DEFAULT_SEARCH_SPACES, use it as base. You may adjust 
+            ranges based on TOON context, but always respect: 
+            - grid search : total combinations <= search_budget.max_combinations 
+            - random search: use scipy.stats distributions, not discrete lists 
+            - optuna : define suggest_int / suggest_float / suggest_categorical  
+            2. If the model does NOT exist in DEFAULT_SEARCH_SPACES:  
+            a. Include ONLY the 3-5 most impactful hyperparameters for that model.  
+                Prioritize: complexity control, regularization, learning rate.  
+            b. Use no more than 3 values per hyperparameter.  
+            c. Verify parameter names against the sklearn-compatible API.  
+            d. Add a comment next to each parameter explaining why it was  
+                included.  
+            3. If search_strategy is "auto", select method using: 
+            - n_features < 20 AND n_rows < 50k → grid 
+            - n_features >= 20 OR n_rows >= 50k → random 
+            - n_targets > 1 OR GatedChain → optuna  
+            4. Always respect search_config, timeout_minutes and cv_folds.  
+            5. Print param_space as a dict BEFORE the search starts.  
+            This makes the search space auditable in the execution log.  
+            Example: print("param_space:", param_space) 
+            
+            OUTPUT RULES: - Provide a brief "Orchestration Reasoning" section. - Provide the Python Code block.  - Do not include any conversational text after the code. - Ensure all necessary imports (pandas, sklearn, joblib, etc.) are at the top of 
+            the generated script. 
             """ 
         typo_correlation = dossier["orchestration_plan"]["strategy"]
         max_dependency = dossier["orchestration_plan"]["max_dependency"]
@@ -361,7 +412,7 @@ def process_state_2(data: Dict[str, Any]):
                     info["dependency"] = f"High (linked to {dep_target})"
                 elif dep_target != target:
                     info["dependency"] = f"Low (linked to {dep_target})"
-        toon = build_toon_s2(dossier, typo_correlation, max_dependency, dependency, dossier["targets_evaluation"])
+        toon = build_toon_s2(dossier, typo_correlation, max_dependency, dependency, dossier["targets_evaluation"], data)
         user_prompt = f"Please orchestrate the training pipeline for the following dossier:\n\n{toon}"
         orchestation_script = call_ollama(data["model"], orchestrator_system_prompt, user_prompt, state=2)
         if "```python" in orchestation_script:
@@ -439,7 +490,8 @@ def process_state_2(data: Dict[str, Any]):
             # Limpieza de formato para asegurar que solo tenemos código Python
             if "```python" in orchestation_script:
                 orchestation_script = orchestation_script.split("```python")[1].split("```")[0].strip()
-        
+            with open("orchestation_script.py", "w", encoding="utf-8") as f:
+                f.write(orchestation_script)
         return {
             "status": "failed",
             "last_error": execution_result.stderr

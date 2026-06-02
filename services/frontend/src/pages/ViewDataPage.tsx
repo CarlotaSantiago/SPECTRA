@@ -202,6 +202,8 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
 
     const payload = {
       dossier: dossier.data, // Los datos editados (incluyendo mappings y orden)
+      path: dossier.path,
+      extension: dossier.extension,
       model: selectedModel,
     };
     console.log("Payload a enviar:", payload);

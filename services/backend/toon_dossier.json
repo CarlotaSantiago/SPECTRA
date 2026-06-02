@@ -80,7 +80,7 @@
         "prioridad": {
             "technical_level": 2,
             "subclass": "ORDINAL",
-            "mapping": "{A: 0, B: 1, C: 2}",
+            "mapping": "{'A': 0, 'B': 1, 'C': 2}",
             "reasoning": "one sentence."
         }
     },
@@ -114,9 +114,9 @@
                 "75"
             ],
             "information_gain": {
-                "especialidad": 0.0145,
-                "sala": 0.0334,
-                "prioridad": 0.2101
+                "especialidad": 0.0199,
+                "sala": 0.0338,
+                "prioridad": 0.2111
             }
         },
         "datosclini_limpio": {
@@ -148,9 +148,9 @@
                 "paciente antecedentes quistes radiculares intervenidos 2023 tirotropina hormona estimulante tiroides 233 presenta aumento volumen bilateral 1 año evolucion adyacente glande submandibulares solicito descartar complicaciones saludo"
             ],
             "information_gain": {
-                "especialidad": 0.2478,
-                "sala": 0.4811,
-                "prioridad": 0.3569
+                "especialidad": 0.2467,
+                "sala": 0.4847,
+                "prioridad": 0.354
             }
         },
         "sospechadiag_limpio": {
@@ -182,9 +182,9 @@
                 "hipotiroidismo"
             ],
             "information_gain": {
-                "especialidad": 0.2945,
-                "sala": 0.5147,
-                "prioridad": 0.3832
+                "especialidad": 0.2953,
+                "sala": 0.5125,
+                "prioridad": 0.3819
             }
         }
     },

@@ -2,8 +2,11 @@
 import re
 import json
 
-def build_toon_s2(metadata, type_correlation, max_dependency, dependency, target_meta):
-    toon_str = "# DATASET_CONTEXT\n"
+def build_toon_s2(metadata, type_correlation, max_dependency, dependency, target_meta, data):
+    toon_str = "#LOCATION DATAFRAME\n"
+    toon_str += f"path: {data['path']}\n"
+    toon_str += f"extension_file: {data['extension']}\n\n"
+    toon_str += "# DATASET_CONTEXT\n"
     toon_str += f"rows: {metadata['global_metadata']['total_rows']}\t| features: {metadata['global_metadata']['features']}\n"
     toon_str += f"target_correlation:   '{{type: {type_correlation}, dependency: {dependency}, p_value: {max_dependency} }}'\n\n"
 

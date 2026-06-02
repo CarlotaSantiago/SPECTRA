@@ -1,19 +1,19 @@
 import pandas as pd
 from sklearn.model_selection import StratifiedKFold
 
-# Load your data
-data = pd.read_csv('data.csv')  # Replace 'your_data.csv' with your actual data file
+# Load your data here
+data = pd.read_csv('data.csv')
 
-# Define the target variable and features
-target = 'especialidad'
-features = [col for col in data.columns if col != target]
+# Define the features and target
+X = data.drop('target', axis=1)
+y = data['target']
 
-# Initialize StratifiedKFold
-cv_strategy = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
+# Initialize the cross-validator
+cv = StratifiedKFold(n_splits=10)
 
-# Perform cross-validation
-for train_index, test_index in cv_strategy.split(data[features], data[target]):
-    X_train, X_test = data.iloc[train_index][features], data.iloc[test_index][features]
-    y_train, y_test = data.iloc[train_index][target], data.iloc[test_index][target]
+# Split the data using the cross-validator
+for train_index, test_index in cv.split(X, y):
+    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
 
-# Continue with your model training and evaluation
+# Add your model training and evaluation code here

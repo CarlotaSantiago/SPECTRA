@@ -1,6 +1,10 @@
+#LOCATION DATAFRAME
+path: uploads\dataset_unificado.xlsx
+extension_file: .xlsx
+
 # DATASET_CONTEXT
-rows: 8219	| features: 5
-target_correlation:   '{type: HybridChain, dependency: Low, p_value: 0.1 }'
+rows: 10240	| features: 5
+target_correlation:   '{type: GatedChain, dependency: High, p_value: 0.7675 }'
 
 # USER_INTERFACE_CONSTRAINTS
 cv_strategy: '{'strategy': StratifiedKFold, 'folds': 10}'
@@ -12,18 +16,18 @@ optimization_priority: ['Performance', 'Interpretability']
 targets:
 	- name: especialidad:
 	- type: NOMINAL
-	- dependency: Low (linked to prioridad)
+	- dependency: High (linked to prioridad)
 	- priority_metrics: ['F1-Score', 'Accuracy']
 
 	- name: sala:
 	- type: NOMINAL
-	- dependency: Low (linked to prioridad)
-	- priority_metrics: ['Kappa', 'Log-Loss']
+	- dependency: High (linked to prioridad)
+	- priority_metrics: ['Log-Loss', 'Kappa']
 
 	- name: prioridad:
 	- type: ORDINAL
-	- dependency: Low (linked to sala)
-	- priority_metrics: ['Kappa', 'Log-Loss']
+	- dependency: High (linked to sala)
+	- priority_metrics: ['Log-Loss', 'Kappa']
 
 	# MODEL_SELECTION_GUIDELINES
 mode: AUTONOMOUS_COMPETITION
