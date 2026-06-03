@@ -1,5 +1,5 @@
 #LOCATION DATAFRAME
-path: uploads\dataset_unificado.xlsx
+path: uploads\datos_limpios.xlsx
 extension_file: .xlsx
 
 # DATASET_CONTEXT
@@ -17,17 +17,17 @@ targets:
 	- name: especialidad:
 	- type: NOMINAL
 	- dependency: High (linked to prioridad)
-	- priority_metrics: ['F1-Score', 'Accuracy']
+	- priority_metrics: ['Accuracy', 'F1-Score']
 
 	- name: sala:
 	- type: NOMINAL
 	- dependency: High (linked to prioridad)
-	- priority_metrics: ['Log-Loss', 'Kappa']
+	- priority_metrics: ['Kappa', 'Log-Loss']
 
 	- name: prioridad:
 	- type: ORDINAL
 	- dependency: High (linked to sala)
-	- priority_metrics: ['Log-Loss', 'Kappa']
+	- priority_metrics: ['Kappa', 'Log-Loss']
 
 	# MODEL_SELECTION_GUIDELINES
 mode: AUTONOMOUS_COMPETITION

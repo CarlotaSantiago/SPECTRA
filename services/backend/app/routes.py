@@ -19,11 +19,9 @@ from app.services.classify import classify_data, compute_information_gain, encod
 from app.services.device_detection import get_device
 from app.services.routeOllama import call_ollama
 from app.services.processor import limpiar_datos
-from app.services.predict_models import predecir_final
 from app.services.build_toon import build_toon_payload, build_toon_s2, integrar_analisis_llm
 from app.services.strarified_sampling import stratified_sample_100
 from app.services.orchestation import build_chain_strategy, compute_target_dependency_matrix
-from app.services.train_models import entrenar_modelos_binarios, entrenar_modelos_prioridad
 from app.services.resolve_search import resolve_search_strategy, DEFAULT_SEARCH_SPACES
 
 logger = logging.getLogger(__name__)
@@ -166,15 +164,12 @@ def process_state_1(data: Dossier):
         dossier = {
             "classified_evaluation": {}
         }
+        columnas_limpias = {}
         for col in data.features:
             if col not in df.columns:
                 logger.warning(f"Column not found: {col}")
                 continue
 
-            nombre = col + "_limpio"
-            if nombre in df.columns:
-
-                col = nombre
 
             series = df[col]
 
@@ -187,6 +182,10 @@ def process_state_1(data: Dossier):
 
             if col_data["technical_level"] in [1, 2]:
                 columnas.append(col)
+                columnas_limpias[col] = df[col]
+            else:
+                columnas_limpias[col] = limpiar_datos(df[col])
+
 
             is_discrete = col_data["technical_level"] in [1, 2]
 
@@ -202,6 +201,12 @@ def process_state_1(data: Dossier):
             if col_data["technical_level"] in [1, 3, 4]:
                 dossier["classified_evaluation"][col] = col_data
 
+        save_path = os.path.join("uploads", "datos_limpios.xlsx")
+        new_data = pd.DataFrame(columnas_limpias)
+        for target in data.targets:
+            if target in df.columns:
+                new_data[target] = df[target]
+        new_data.to_excel(save_path, index=False)
         sample_df = stratified_sample_100(df[columnas], data.targets)
         sample_df_clean = sample_df.astype(object).fillna("")
         metadata ={
@@ -278,8 +283,8 @@ def process_state_1(data: Dossier):
             json.dump(json_tecnico, f, indent=4, ensure_ascii=False)
         return {
             "status": "ok",
-            "path": data.path,
-            "extension": os.path.splitext(data.path)[1],
+            "path": save_path,
+            "extension": os.path.splitext(save_path)[1],
             "data": json_tecnico
         }
 
@@ -296,26 +301,96 @@ def process_state_1(data: Dossier):
 MAX_ATTEMPTS = 3
 UNRECOVERABLE_ERRORS = ["MemoryError", "CUDA out of memory", "SystemExit", "OSError: [Errno 28]"]
 
-def run_script_in_sandbox(script_content: str):
+def _docker_available() -> bool: 
     """
-    Ejecuta el script generado y captura el error si existe.
+    Detecta automáticamente si Docker está instalado y en ejecución en el host.
+    """
+    try: 
+        r = subprocess.run(['docker', 'info'], capture_output=True, timeout=5) 
+        return r.returncode == 0 
+    except (FileNotFoundError, subprocess.TimeoutExpired): 
+        return False 
+
+def _run_in_subprocess(code: str) -> subprocess.CompletedProcess: 
+    """
+    Ejecución clásica mediante un subproceso local de Python.
     """
     filename = "temp_execution_script.py"
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(script_content)
+    with open(filename, 'w', encoding='utf-8') as f: 
+        f.write(code) 
+    return subprocess.run( 
+        ['python', filename], 
+        capture_output=True, text=True, timeout=900 
+    ) 
+
+def _run_in_docker(code: str, dataset_path: str, output_path: str) -> subprocess.CompletedProcess: 
+    """
+    Ejecución en un entorno 100% aislado dentro de un contenedor Docker.
+    Monta los volúmenes en modo lectura para datos y escritura para salidas.
+    """
+    filename = "/tmp/script_automl.py"
+    with open(filename, 'w', encoding='utf-8') as f: 
+        f.write(code) 
     
-    # Ejecutamos el script. Asegúrate de que 'data.csv' esté en la misma carpeta
-    result = subprocess.run(
-        ["python", filename], 
-        capture_output=True, 
-        text=True,
-        timeout=600 # O el tiempo que definas en tu dossier
-    )
-    return result
+    cmd = [ 
+        'docker', 'run', '--rm', 
+        '-v', f'{dataset_path}:/data:ro',           # dataset en modo sólo lectura (read-only)
+        '-v', f'{output_path}:/output',             # carpeta de salida para artefactos (.joblib)
+        '-v', f'{filename}:/app/run.py',            # mapeo del script generado
+        'python:3.11-slim', 
+        'bash', '-c', 
+        'pip install -q scikit-learn lightgbm xgboost joblib optuna pandas openpyxl pyarrow && python /app/run.py' 
+    ] 
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=960) 
 
-def is_unrecoverable(stderr: str) -> bool:
-    return any(err in stderr for err in UNRECOVERABLE_ERRORS)
+def run_script_in_sandbox(script_content: str, dataset_path: str, output_path: str, manifest: dict) -> subprocess.CompletedProcess: 
+    """
+    Determina de manera inteligente y según el manifest cómo ejecutar el código.
+    """
+    # Leer el modo deseado del manifest. Si no se indica o es 'auto', se auto-detecta.
+    mode = manifest.get('execution_mode', 'auto')
+    
+    if mode == 'auto':
+        use_docker = _docker_available()
+    elif mode == 'docker':
+        if not _docker_available():
+            # Forzamos docker pero no está disponible: levantamos un proceso ficticio con el error
+            res = subprocess.CompletedProcess(args=[], returncode=1)
+            res.stderr = "Error: Docker mode forced in manifest but Docker is not available or running."
+            return res
+        use_docker = True
+    else:  # 'subprocess'
+        use_docker = False
 
+    if use_docker: 
+        return _run_in_docker(script_content, dataset_path, output_path) 
+    return _run_in_subprocess(script_content) 
+
+def classify_error(stderr: str) -> str:     
+    """
+    Clasifica el error para orientar de forma precisa la estrategia del LLM.
+    """
+    if 'SyntaxError' in stderr or 'IndentationError' in stderr: 
+        return 'syntax'    
+    if 'ModuleNotFoundError' in stderr or 'ImportError' in stderr: 
+        return 'import'  
+    if any(k in stderr for k in ['shape', 'dimension', 'mismatch']): 
+        return 'shape'     
+    return 'structural'  
+
+def build_repair_prompt(dossier, broken_code, stderr, attempt, error_type) -> str:     
+    """
+    Construye un prompt de reparación parametrizado, indicando el tipo de error e intento actual.
+    """
+    return f'''  
+    ATTEMPT {attempt} of {MAX_ATTEMPTS}. Error type: {error_type}.  
+    ERROR LOG: {stderr} 
+    ORIGINAL CODE: {broken_code}  
+    ORIGINAL DOSSIER: {dossier}  
+    
+    Fix ONLY what the error log points to.  
+    Preserve chain strategy, model choices, and metric choices.  
+    Return ONLY the corrected Python code block. '''
 
 @router.post("/process-state2")
 def process_state_2(data: Dict[str, Any]):
@@ -323,6 +398,11 @@ def process_state_2(data: Dict[str, Any]):
         dossier = data["dossier"]
         model = data["model"]
 
+        # Extraemos rutas por defecto o del dossier/manifest para Docker
+        # Si no se definen en el input, asignamos valores por defecto locales seguros
+        manifest = data.get("manifest", dossier.get("global_metadata", {}).get("manifest", {"execution_mode": "auto"}))
+        dataset_path = data['path'] 
+        output_path = data.get("output_path", "./output")
         # =========================================================================
         # INYECCIÓN DEL PASO 3: ESPACIOS DE BÚSQUEDA Y HEURÍSTICA DE ESTRATEGIA ("auto")
         # =========================================================================
@@ -401,6 +481,9 @@ def process_state_2(data: Dict[str, Any]):
             
             OUTPUT RULES: - Provide a brief "Orchestration Reasoning" section. - Provide the Python Code block.  - Do not include any conversational text after the code. - Ensure all necessary imports (pandas, sklearn, joblib, etc.) are at the top of 
             the generated script. 
+            - Model Persistence: The script MUST include a final block using joblib to save:
+            - Each trained model as 'model_{target_name}.joblib' (o '/output/model_{target_name}.joblib' si corre en Docker)
+            - Each preprocessing transformer as 'preprocessor_stage{N}.joblib'
             """ 
         typo_correlation = dossier["orchestration_plan"]["strategy"]
         max_dependency = dossier["orchestration_plan"]["max_dependency"]
@@ -423,7 +506,7 @@ def process_state_2(data: Dict[str, Any]):
 
         for attempt in range(1, MAX_ATTEMPTS + 1):
             print(f"--- Intento de ejecución {attempt} ---")
-            execution_result = run_script_in_sandbox(orchestation_script)
+            execution_result = run_script_in_sandbox(orchestation_script, dataset_path, output_path, manifest)
 
             if execution_result.returncode == 0:
                 with open("orchestation_script.py", "a", encoding="utf-8") as f:
@@ -435,58 +518,65 @@ def process_state_2(data: Dict[str, Any]):
             if any(err in execution_result.stderr for err in UNRECOVERABLE_ERRORS):
                 return {
                     "status": "UNRECOVERABLE_ERROR",
+                    "attempts": attempt,
                     "reason": "Hardware/System limits reached (OOM/Disk Full)."
                 }
+            if attempt == MAX_ATTEMPTS:
+                break
 
-            self_healing_system_prompt = """
+            error_type = classify_error(execution_result.stderr)
+
+            intento_instruccion = (
+                "Fix ONLY what the error log explicitly points to with a minimal fix (e.g. one-line change/missing import)."
+                if attempt == 1 
+                else "You may rewrite structural or transformation blocks causing the mismatch, but preserve core model choices and chain order."
+            )
+
+            self_healing_system_prompt =  """ 
                 You are the Master Pipeline Orchestrator in DEBUG MODE.  
                 Your previous code failed, and you must now act as a Senior Debugger. 
-                INSTRUCTIONS: 
-                1. Analyze the 'Error Log' provided by the user. 
-                2. Identify the root cause (missing import, shape mismatch, deprecated 
-                API, etc.). 
-                3. Cross-reference with the ORIGINAL DOSSIER to ensure business logic 
-                is still intact. 
-                4. Output the COMPLETE corrected script. 
-                CRITICAL EXECUTION RULES: - Minimal Fix Priority: Fix ONLY what the error log explicitly points 
-                to.  
-                Do NOT rewrite architecture unless the error is structural. 
-                Unnecessary  
-                rewrites introduce new bugs. - Attempt Awareness: You will be told which attempt number this is. 
-                On attempt 2+, prioritize minimal changes over architectural 
-                rewrites. - Unrecoverable Errors: If the error is MemoryError, SystemExit, CUDA 
-                OOM,  
-                or disk full (OSError Errno 28), do NOT attempt a fix. Return the 
-                token  
-                UNRECOVERABLE_ERROR on the first line, followed by a one-line 
-                explanation. - Hybrid Leakage Prevention: In HybridChain pipelines, NEVER call 
-                predict()  
-                or predict_proba() on the full training set to generate 
-                meta-features.  
-                ALWAYS use cross_val_predict() with the same CV strategy defined in 
-                the  
-                dossier. This is mandatory to prevent target leakage between stages. - Leakage Prevention: Use Scikit-Learn Pipelines for all 
-                transformations  
-                and model fits. Never fit the preprocessor outside of a Pipeline. - Self-Contained: The script must assume the data is in 'data.csv'. - Model Persistence: The script MUST include a final block using joblib 
-                to save: - Each trained model as 'model_{target_name}.joblib' - Each preprocessing transformer as 'preprocessor_stage{N}.joblib' - Final Logging: Include a print() summary at the end showing: - The attempt number - The root cause identified - The fix applied - The final metrics on the validation set 
-                OUTPUT RULES: - Do not apologize. - Do not explain the fix unless it is a critical architecture change. - Return ONLY the corrected Python code block. - Ensure all necessary imports are at the top of the script. """
-
-            repair_prompt = f"""
-                ATTEMPT {attempt} of {MAX_ATTEMPTS - 1} repair attempts remaining.
                 
-                ERROR LOG: 
-                {execution_result.stderr}
+                CONTEXT: 
+                The original script was generated by an orchestrator that already 
+                decided: 
+                - The chain strategy (ClassifierChain, GatedChain, etc.) 
+                - The model and metric for each target based on its subclass and 
+                n_classes 
+                - The hyperparameter search space and CV strategy 
+                These decisions belong to the orchestrator, not to you. 
+                Do NOT revisit or replace them unless the error log explicitly points to 
+                them. 
                 
-                ORIGINAL CODE: 
-                {orchestation_script}
+                REPAIR RULES: 
+                1. Fix ONLY what the error log points to. 
+                    syntax / import errors → minimal one-line fix, no restructuring. 
+                    shape / mismatch errors → fix the transformation causing the  
+                                            mismatch. 
+                    structural errors → may rewrite the affected block, but preserve 
+                                    model choices, metric choices, and chain order. 
+                2. Preserve model and metric choices: if the original script uses 
+                    LGBMClassifier with kappa_linear for an ordinal target, keep it. 
+                    Only replace a model if the error is caused by that specific model. 
+                3. NEVER replace cross_val_predict() with predict() or predict_proba() 
+                    on the full training set — this would introduce target leakage. 
+                4. NEVER remove joblib persistence blocks. 
+                5. On attempt 2+, you may rewrite larger blocks if the error is   
+                    structural, but the chain strategy and execution order must remain    
+                    identical. 
                 
-                ORIGINAL DOSSIER: 
-                {dossier}
+                UNRECOVERABLE ERRORS: 
+                If the error is MemoryError, CUDA out of memory, SystemExit, or 
+                OSError Errno 28 (disk full): return the token UNRECOVERABLE_ERROR 
+                on the first line, followed by a one-line explanation. 
                 
-                Fix ONLY what the error log points to.
-                Return ONLY the Python code.
+                OUTPUT: 
+                Return ONLY the corrected Python code block. 
+                No apologies, no explanations unless the fix is a critical    
+                architecture change. 
                 """
+            repair_prompt = build_repair_prompt(dossier, orchestation_script, execution_result.stderr, attempt, error_type)
             orchestation_script = call_ollama(model, self_healing_system_prompt, repair_prompt, state=2)
+            
             # Limpieza de formato para asegurar que solo tenemos código Python
             if "```python" in orchestation_script:
                 orchestation_script = orchestation_script.split("```python")[1].split("```")[0].strip()
@@ -502,118 +592,3 @@ def process_state_2(data: Dict[str, Any]):
             "status": "error",
             "message": str(e)
         }
-class PredictionBlock(BaseModel):
-    """
-    Configuration block for a prediction section containing model selection and files to process.
-    """
-    active: bool
-    models: List[str]
-    files: List[str]
-
-class PredictionRequest(BaseModel):
-    """
-    Request model for prediction endpoint containing MIO, HOMBRO, and PRIORIDAD blocks.
-    """
-    mio: PredictionBlock
-    hombro: PredictionBlock
-    prioridad: PredictionBlock
-
-
-@router.post("/train")
-async def run_training(data: PredictionRequest):
-    """
-    Run training models for MIO, HOMBRO, and PRIORIDAD blocks.
-    
-    Args:
-        data: PredictionRequest containing model configuration for each block.
-    
-    Returns:
-        Status and results of the training process.
-    """
-    resultados_globales = {}
-
-    for nombre_bloque, bloque in [('mio', data.mio), ('hombro', data.hombro), ('prioridad', data.prioridad)]:
-        if bloque.active:
-            resultados_globales[nombre_bloque] = {}
-            modelos_en_disco = os.listdir('./models')
-            for model_key in bloque.models:
-                nombre_modelo = f"{model_key}_{nombre_bloque}.pkl"
-                if nombre_modelo not in modelos_en_disco:
-                    if nombre_bloque == 'prioridad':
-                        await entrenar_modelos_prioridad(bloque.files, model_key, nombre_bloque)
-                        resultados_globales[nombre_bloque][model_key] = "entrenado_prioridad"
-                    else:
-                        await entrenar_modelos_binarios(bloque.files, model_key, nombre_bloque)
-                        resultados_globales[nombre_bloque][model_key] = "entrenado"
-                else:
-                    resultados_globales[nombre_bloque][model_key] = "ya existente"
-
-    if not resultados_globales:
-        return {"status": "warning", "message": "No se seleccionó ningún bloque para entrenamiento."}
-
-    return {"status": "success", "data": resultados_globales}
-
-
-@router.post("/predict")
-async def run_prediction(
-    data: PredictionRequest):
-    """
-    Run prediction models for MIO, HOMBRO, and PRIORIDAD blocks.
-    """
-    resultados_globales = {}
-
-    if data.mio.active:
-        resultados_globales["mio"] = await procesar_bloque("MIO", data.mio, "mio")
-    if data.hombro.active:
-        resultados_globales["hombro"] = await procesar_bloque("HOMBRO", data.hombro, "hombro")
-    if data.prioridad.active:
-        resultados_globales["prioridad"] = await procesar_bloque("PRIORIDAD", data.prioridad, "prioridad")
-
-    print(f"Resultados globales de predicción: {resultados_globales}")  # Esto te ayudará a ver qué se ha procesado
-    # Validación: Si no se activó NADA, avisamos al usuario
-    if not resultados_globales:
-        return {
-            "status": "warning", 
-            "message": "No se seleccionó ningún bloque para análisis."
-        }
-
-    return {
-        "status": "success",
-        "data": resultados_globales
-    }
-
-
-async def procesar_bloque(nombre_bloque: str, config: PredictionBlock, target_col: str):
-    """
-    Process a prediction block by checking if models exist and running predictions.
-
-    Args:
-        nombre_bloque: Name of the block (e.g., "MIO", "HOMBRO", "PRIORIDAD").
-        config: PredictionBlock containing model configuration and files to process.
-        target_col: Target column name for the model (e.g., "etiqueta_mio").
-
-    Returns:
-        Dictionary with prediction results for each model.
-    """
-    resultados_bloque = {}
-    modelos_en_disco = os.listdir('./models')
-
-    for model_key in config.models:
-        if nombre_bloque == 'PRIORIDAD':
-            # La prioridad usa C1 y C2, comprobamos que al menos esté el C1
-            nombre_archivo_modelo = f"{model_key}_{target_col}_C1.pkl"
-        else:
-            # Mio y Hombro son directos
-            nombre_archivo_modelo = f"{model_key}_{target_col}.pkl"
-        if nombre_archivo_modelo not in modelos_en_disco:
-            if nombre_bloque == 'PRIORIDAD':
-                print(f"Modelo {nombre_archivo_modelo} no encontrado, entrenando modelos de prioridad...")
-                await entrenar_modelos_prioridad(config.files, model_key, target_col)
-            else:
-                print(f"Modelo {nombre_archivo_modelo} no encontrado, entrenando...")
-                await entrenar_modelos_binarios(config.files, model_key, target_col)
-        print(f"Ejecutando predicción para {model_key} en bloque {nombre_bloque}...")
-        res = await predecir_final(model_key, config.files, target_col)
-        resultados_bloque[model_key] = res
-    
-    return resultados_bloque
