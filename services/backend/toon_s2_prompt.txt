@@ -17,17 +17,17 @@ targets:
 	- name: especialidad:
 	- type: NOMINAL
 	- dependency: High (linked to prioridad)
-	- priority_metrics: ['Accuracy', 'F1-Score']
+	- priority_metrics: ['Precision', 'Accuracy']
 
 	- name: sala:
 	- type: NOMINAL
 	- dependency: High (linked to prioridad)
-	- priority_metrics: ['Kappa', 'Log-Loss']
+	- priority_metrics: ['AUC-ROC', 'F1-Score']
 
 	- name: prioridad:
 	- type: ORDINAL
 	- dependency: High (linked to sala)
-	- priority_metrics: ['Kappa', 'Log-Loss']
+	- priority_metrics: ['Log-Loss', 'Kappa']
 
 	# MODEL_SELECTION_GUIDELINES
 mode: AUTONOMOUS_COMPETITION

@@ -1,6 +1,7 @@
 // src/adapters/configAdapter.ts
 import { post, ollamaGet } from "./xhr";
 import type { DossierPayload } from "../types"
+import axios from "axios";
 
 export const processState1 = (dossier: DossierPayload) => {
     return post("/process-state1", dossier);
@@ -8,12 +9,20 @@ export const processState1 = (dossier: DossierPayload) => {
 
 export const getModelsOllama = async (): Promise<string[]> => {
   try {
-    const data = await ollamaGet("/tags");
-    // Ollama devuelve un objeto con una lista de modelos
-    return data.models.map((m: any) => m.name);
+    const response = await axios.get("http://localhost:8000/models");
+
+    if (response.data && response.data.status == "ok"){
+      return response.data.models;
+    }
+    return ["llama3"];
+  
   } catch (error) {
-    console.warn("Ollama local no detectado, cargando modelos recomendados.");
-    // Estos son los modelos que sugirió tu profesor
-    return ["qwen2.5-coder", "deepseek-coder", "llama3"];
+    console.error("Error al obtener el listado unificado de modelos", error);
+    // Fallback de rescate en el cliente con los datos reales que viste en consola
+    return [
+      "llama3", 
+      "ia.drorras.info/qwen2.5:14b-instruct-q4_K_M",
+      "ia.drorras.info/qwen3:8b"
+    ];
   }
 };

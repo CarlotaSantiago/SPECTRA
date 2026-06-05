@@ -3,7 +3,9 @@ import io
 import json
 import logging
 import os
+import re
 import subprocess
+import requests
 
 import numpy as np
 import pandas as pd
@@ -14,7 +16,7 @@ from pydantic import BaseModel
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.preprocessing import LabelEncoder
 from typing import Any, Dict, List
-
+from app.services.model_router import orchestrate_pipeline
 from app.services.classify import classify_data, compute_information_gain, encode_series
 from app.services.device_detection import get_device
 from app.services.routeOllama import call_ollama
@@ -29,6 +31,46 @@ logger = logging.getLogger(__name__)
 
 # 1. Usamos el APIRouter()
 router = APIRouter()
+
+@router.get("/models")
+def get_available_models():
+    """
+    Lista los modelos locales y consume de forma exacta la API 
+    del profesor detectada en el test.
+    """
+    local_models = []
+    profesor_models = []
+
+    # 1. Intentamos recuperar tus modelos locales (Ollama local API)
+    try:
+        response_local = requests.get("http://localhost:11434/api/tags", timeout=2)
+        if response_local.status_code == 200:
+            local_models = [m["name"] for m in response_local.json().get("models", [])]
+    except Exception:
+        # Fallback local por si tu Ollama local está apagado en este momento
+        local_models = ["llama3", "qwen2.5-coder:7b"]
+
+    # 2. Consumimos el endpoint del profesor (Estructura OpenAI validada)
+    try:
+        url_profesor = "http://ia.drordas.info:11434/v1/models"
+        response_profe = requests.get(url_profesor, timeout=3)
+
+        if response_profe.status_code == 200:
+            data_profe = response_profe.json()
+            # Iteramos sobre la lista 'data' exacta que viste en el CMD
+            for m in data_profe.get("data", []):
+                model_id = m.get("id")
+                if model_id:
+                    # Le anteponemos el dominio para identificarlo en el frontend
+                    profesor_models.append(f"ia.drordas.info/{model_id}")
+    except Exception as e:
+        print(f"[BACKEND] No se pudo conectar a la URL externa: {e}")
+        # Modelos de contingencia basados en tu captura si falla la red
+        profesor_models = [
+        ]
+
+    # Devolvemos la combinación de ambos orígenes
+    return {"status": "ok", "models": local_models + profesor_models}
 
 @router.post("/upload") # 2. Cambiamos 'app.post' por 'router.post'
 async def handle_upload(
@@ -396,19 +438,19 @@ def build_repair_prompt(dossier, broken_code, stderr, attempt, error_type) -> st
 def process_state_2(data: Dict[str, Any]):
     try:
         dossier = data["dossier"]
-        model = data["model"]
-
-        # Extraemos rutas por defecto o del dossier/manifest para Docker
-        # Si no se definen en el input, asignamos valores por defecto locales seguros
+        model_name = data["model"]
+        dataset_path = data['path']
+        print(dataset_path)
+        output_path = data.get("output_path", "./model")
         manifest = data.get("manifest", dossier.get("global_metadata", {}).get("manifest", {"execution_mode": "auto"}))
-        dataset_path = data['path'] 
-        output_path = data.get("output_path", "./output")
-        # =========================================================================
-        # INYECCIÓN DEL PASO 3: ESPACIOS DE BÚSQUEDA Y HEURÍSTICA DE ESTRATEGIA ("auto")
-        # =========================================================================
-        # 1. Resolvemos la estrategia real (grid, random, optuna) basándonos en el dossier
+
+        if "ia.drorras.info" in model_name or "." in model_name:
+            ollama_url = "http://ia.drordas.info:11434"
+            model_name = model_name.split("/")[-1]
+        else:
+            ollama_url = "http://localhost:11434"
+
         search_resolution = resolve_search_strategy(dossier)
-        
         # 2. Aseguramos que la estructura interna exista para no arrojar KeyError
         if "global_metadata" not in dossier:
             dossier["global_metadata"] = {}
@@ -416,75 +458,13 @@ def process_state_2(data: Dict[str, Any]):
             dossier["global_metadata"]["search_config"] = {
                 "max_iter": 50, "max_combinations": 200, "cv_folds": 10, "timeout_minutes": 30
             }
-            
+
         # 3. Mutamos la propiedad 'search_strategy' de "auto" a la seleccionada estadísticamente
         dossier["global_metadata"]["search_config"]["search_strategy"] = search_resolution["selected_strategy"]
         dossier["global_metadata"]["search_config"]["resolution_reasoning"] = search_resolution["reasoning"]
-        
         # 4. Adjuntamos los espacios de búsqueda base estructurados para que Ollama sepa los rangos exactos
         dossier["base_hyperparameter_spaces"] = DEFAULT_SEARCH_SPACES
-        # =========================================================================
-        orchestrator_system_prompt = """ 
-            You are the Master Pipeline Orchestrator, a Senior Lead Data Scientist.  
-            
-            Your goal is to generate a professional, high-performance, and IMMEDIATELY 
-            EXECUTABLE Python script for model training. 
-            
-            DIVISION OF RESPONSIBILITIES:     
-            The dossier already contains 'chain_strategy' with the structural pipeline    
-            decision (ClassifierChain, RegressorChain, HybridChain, GatedChain, 
-            MultiOutput).    YOUR responsibility is to decide the MODELS and METRICS for 
-            each target. 
-            
-            RESPONSIBILITIES:       
-            1. DATA LOADING: Locate the '#LOCATION DATAFRAME' section in the user prompt/dossier.
-               Extract the specified 'path' and 'extension_file'. Your generated script MUST 
-               load the dataset dynamically utilizing the correct pandas reader function corresponding 
-               to that extension (e.g., pd.read_csv for csv, pd.read_excel for xlsx, pd.read_parquet for parquet).
-               Do NOT hardcode 'data.csv' if the dossier specifies another target path or format.
-            2. Read 'chain_strategy.target_profiles' for each target:          
-                - subclass: NOMINAL or ORDINAL          
-                - n_classes: number of unique classes          
-                - mapping: ordinal encoding if applicable          
-                Select the most appropriate model and evaluation metric based on these 
-            facts.       
-            3. Implement the chain strategy exactly as specified in 
-            'chain_strategy.strategy'.          
-                Do NOT change the strategy or execution order.       
-            4. HybridChain / GatedChain: ALWAYS use cross_val_predict() —          
-                NEVER call predict() or predict_proba() on the full training set.         
-            5. Use the search_type specified in the dossier for hyperparameter tuning.      
-            6. Save each model as model_{target}.joblib using joblib.       
-            7. Print final summary with best params and validation metrics.     
-            
-            HYPERPARAMETER SEARCH SPACE RULES: 
-            1. If the model EXISTS in DEFAULT_SEARCH_SPACES, use it as base. You may adjust 
-            ranges based on TOON context, but always respect: 
-            - grid search : total combinations <= search_budget.max_combinations 
-            - random search: use scipy.stats distributions, not discrete lists 
-            - optuna : define suggest_int / suggest_float / suggest_categorical  
-            2. If the model does NOT exist in DEFAULT_SEARCH_SPACES:  
-            a. Include ONLY the 3-5 most impactful hyperparameters for that model.  
-                Prioritize: complexity control, regularization, learning rate.  
-            b. Use no more than 3 values per hyperparameter.  
-            c. Verify parameter names against the sklearn-compatible API.  
-            d. Add a comment next to each parameter explaining why it was  
-                included.  
-            3. If search_strategy is "auto", select method using: 
-            - n_features < 20 AND n_rows < 50k → grid 
-            - n_features >= 20 OR n_rows >= 50k → random 
-            - n_targets > 1 OR GatedChain → optuna  
-            4. Always respect search_config, timeout_minutes and cv_folds.  
-            5. Print param_space as a dict BEFORE the search starts.  
-            This makes the search space auditable in the execution log.  
-            Example: print("param_space:", param_space) 
-            
-            OUTPUT RULES: - Provide a brief "Orchestration Reasoning" section. - Provide the Python Code block.  - Do not include any conversational text after the code. - Ensure all necessary imports (pandas, sklearn, joblib, etc.) are at the top of 
-            the generated script. 
-            - Model Persistence: The script MUST include a final block using joblib to save:
-            - Each trained model as 'model_{target_name}.joblib' (o '/output/model_{target_name}.joblib' si corre en Docker)
-            - Each preprocessing transformer as 'preprocessor_stage{N}.joblib'
-            """ 
+
         typo_correlation = dossier["orchestration_plan"]["strategy"]
         max_dependency = dossier["orchestration_plan"]["max_dependency"]
         dependency = "High" if (isinstance(max_dependency, (int, float)) and max_dependency > 0.15) else "Low"
@@ -495,97 +475,44 @@ def process_state_2(data: Dict[str, Any]):
                     info["dependency"] = f"High (linked to {dep_target})"
                 elif dep_target != target:
                     info["dependency"] = f"Low (linked to {dep_target})"
-        toon = build_toon_s2(dossier, typo_correlation, max_dependency, dependency, dossier["targets_evaluation"], data)
-        user_prompt = f"Please orchestrate the training pipeline for the following dossier:\n\n{toon}"
-        orchestation_script = call_ollama(data["model"], orchestrator_system_prompt, user_prompt, state=2)
-        if "```python" in orchestation_script:
-            orchestation_script = orchestation_script.split("```python")[1].split("```")[0].strip()
+        toon_dossier = build_toon_s2(dossier, typo_correlation, max_dependency, dependency, dossier["targets_evaluation"], data)
+        print(f"[STATE 2] Evaluando modelo '{model_name}' mediante Router Inteligente en: {ollama_url}")
+        router_result = orchestrate_pipeline(
+            toon_dossier=dossier, 
+            ollama_url=ollama_url, 
+            model_name=model_name
+        )
 
-        with open("orchestation_script.py", "w", encoding="utf-8") as f:
-            f.write(orchestation_script) 
-
-        for attempt in range(1, MAX_ATTEMPTS + 1):
-            print(f"--- Intento de ejecución {attempt} ---")
-            execution_result = run_script_in_sandbox(orchestation_script, dataset_path, output_path, manifest)
+        generated_code = router_result.get("code")
+        if generated_code:
+            with open("orchestation_script.py", "w", encoding="utf-8") as f:
+                f.write(generated_code)
+            
+            print("[STATE 2] Enviando el script definitivo al entorno de ejecución Sandbox...")
+            execution_result = run_script_in_sandbox(generated_code, dataset_path, output_path, manifest)
 
             if execution_result.returncode == 0:
                 with open("orchestation_script.py", "a", encoding="utf-8") as f:
-                    f.write(f"\n# --- EJECUCIÓN EXITOSA EN INTENTO {attempt}     ---\n")
+                    f.write(f"\n# --- EJECUCIÓN EXITOSA FINAL CON MODELO {model_name} ---\n")
                     f.write(execution_result.stdout)
-                return {"status": "ok", "script": orchestation_script, "output": execution_result.stdout}
-            
-            # Si falla, comprobamos si es un error fatal (Memoria/Sistema)
-            if any(err in execution_result.stderr for err in UNRECOVERABLE_ERRORS):
+                    
                 return {
-                    "status": "UNRECOVERABLE_ERROR",
-                    "attempts": attempt,
-                    "reason": "Hardware/System limits reached (OOM/Disk Full)."
+                    "status": "ok", 
+                    "script": generated_code, 
+                    "output": execution_result.stdout,
+                    "model_info": router_result.get("model_info")  # Nos dice qué modo y cuántos Billones de parámetros usó
                 }
-            if attempt == MAX_ATTEMPTS:
-                break
-
-            error_type = classify_error(execution_result.stderr)
-
-            intento_instruccion = (
-                "Fix ONLY what the error log explicitly points to with a minimal fix (e.g. one-line change/missing import)."
-                if attempt == 1 
-                else "You may rewrite structural or transformation blocks causing the mismatch, but preserve core model choices and chain order."
-            )
-
-            self_healing_system_prompt =  """ 
-                You are the Master Pipeline Orchestrator in DEBUG MODE.  
-                Your previous code failed, and you must now act as a Senior Debugger. 
-                
-                CONTEXT: 
-                The original script was generated by an orchestrator that already 
-                decided: 
-                - The chain strategy (ClassifierChain, GatedChain, etc.) 
-                - The model and metric for each target based on its subclass and 
-                n_classes 
-                - The hyperparameter search space and CV strategy 
-                These decisions belong to the orchestrator, not to you. 
-                Do NOT revisit or replace them unless the error log explicitly points to 
-                them. 
-                
-                REPAIR RULES: 
-                1. Fix ONLY what the error log points to. 
-                    syntax / import errors → minimal one-line fix, no restructuring. 
-                    shape / mismatch errors → fix the transformation causing the  
-                                            mismatch. 
-                    structural errors → may rewrite the affected block, but preserve 
-                                    model choices, metric choices, and chain order. 
-                2. Preserve model and metric choices: if the original script uses 
-                    LGBMClassifier with kappa_linear for an ordinal target, keep it. 
-                    Only replace a model if the error is caused by that specific model. 
-                3. NEVER replace cross_val_predict() with predict() or predict_proba() 
-                    on the full training set — this would introduce target leakage. 
-                4. NEVER remove joblib persistence blocks. 
-                5. On attempt 2+, you may rewrite larger blocks if the error is   
-                    structural, but the chain strategy and execution order must remain    
-                    identical. 
-                
-                UNRECOVERABLE ERRORS: 
-                If the error is MemoryError, CUDA out of memory, SystemExit, or 
-                OSError Errno 28 (disk full): return the token UNRECOVERABLE_ERROR 
-                on the first line, followed by a one-line explanation. 
-                
-                OUTPUT: 
-                Return ONLY the corrected Python code block. 
-                No apologies, no explanations unless the fix is a critical    
-                architecture change. 
-                """
-            repair_prompt = build_repair_prompt(dossier, orchestation_script, execution_result.stderr, attempt, error_type)
-            orchestation_script = call_ollama(model, self_healing_system_prompt, repair_prompt, state=2)
-            
-            # Limpieza de formato para asegurar que solo tenemos código Python
-            if "```python" in orchestation_script:
-                orchestation_script = orchestation_script.split("```python")[1].split("```")[0].strip()
-            with open("orchestation_script.py", "w", encoding="utf-8") as f:
-                f.write(orchestation_script)
-        return {
-            "status": "failed",
-            "last_error": execution_result.stderr
-        }
+            else:
+                return {
+                    "status": "failed", 
+                    "last_error": execution_result.stderr, 
+                    "model_info": router_result.get("model_info")
+                }
+        else:
+            return {
+                "status": "router_failed", 
+                "reason": router_result.get("error", "El router no pudo generar un código limpio ejecutable.")
+            }
     except Exception as e:
         logger.error(f"process_state_2 failed: {e}")
         return {
