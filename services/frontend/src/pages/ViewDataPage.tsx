@@ -4,6 +4,89 @@ import { ArrowLeft, Save, Brain, LayoutGrid, Activity, ChevronUp, ChevronDown } 
 import { ModelPicker } from "../feature/components/ModelPicker";
 import { useOllamaModels } from "../feature/hooks/useOllamaModels";
 
+
+// =====================================================================
+// COMPONENTE AUXILIAR PARA RENDERIZAR LA ORQUESTACIÓN (Soporta GatedChain)
+// =====================================================================
+const OrchestrationPlanViewer = ({ plan, onMoveItem }: { plan: any; onMoveItem: (idx: number, dir: 'up' | 'down') => void }) => {
+  if (!plan) return null;
+
+  const { strategy, order, gating, dependents, sub_strategy } = plan;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Badge con el nombre de la estrategia actual */}
+      <div style={{ fontSize: '11px', color: '#648f8c', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '2px' }}>
+        Estrategia: {strategy}
+      </div>
+
+      {/* CASO A: Estrategias normales con orden secuencial plano */}
+      {order && order.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {order.map((target: string, i: number) => (
+            <div key={target} style={orderItemEditable}>
+              <span>{i + 1}. {target}</span>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button 
+                  onClick={() => onMoveItem(i, 'up')} 
+                  disabled={i === 0}
+                  style={miniBtnStyle}
+                >
+                  <ChevronUp size={14}/>
+                </button>
+                <button 
+                  onClick={() => onMoveItem(i, 'down')} 
+                  disabled={i === order.length - 1}
+                  style={miniBtnStyle}
+                >
+                  <ChevronDown size={14}/>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* CASO B: Estructura GatedChain (Ausencias Estructurales) */}
+      {strategy === "GatedChain" && (
+        <div style={{ borderLeft: '2px dashed #ff6b6b', paddingLeft: '10px', marginTop: '4px' }}>
+          {/* Nodo de bloqueo */}
+          <div style={{ ...orderItemEditable, borderLeft: '3px solid #ff6b6b', backgroundColor: '#1a1212' }}>
+            <span style={{ color: '#ff6b6b' }}>🛑 Variable Condicional: <strong>{gating}</strong></span>
+          </div>
+
+          {/* Indicador de variables subordinadas */}
+          <div style={{ fontSize: '11px', color: '#aaa', margin: '6px 0 4px 4px' }}>
+            👇 Dependientes directos (Si {gating} está presente):
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px', paddingLeft: '4px' }}>
+            {dependents?.map((dep: string) => (
+              <span key={dep} style={{ fontSize: '11px', backgroundColor: '#222', color: '#ccc', padding: '3px 8px', borderRadius: '4px', border: '1px solid #333' }}>
+                {dep}
+              </span>
+            ))}
+          </div>
+
+          {/* Sub-estrategia anidada (Llamada recursiva) */}
+          {sub_strategy && (
+            <div style={{ marginTop: '10px', backgroundColor: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '6px' }}>
+              <OrchestrationPlanViewer plan={sub_strategy} onMoveItem={onMoveItem} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Fallback si no hay datos procesables en este nodo */}
+      {!order && strategy !== "GatedChain" && (
+        <div style={{ padding: '8px', color: '#666', fontStyle: 'italic', textAlign: 'center' }}>
+          No hay un orden secuencial definido en este nivel.
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ViewDataPage = () => {
   // Dentro de ViewDataPage, al recibir el state o inicializar:
   const { state } = useLocation();
@@ -267,7 +350,7 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
             <select 
               value={dossier?.data?.orchestration_plan?.strategy} 
               onChange={(e) => handleEditStrategy(e.target.value)}
-              style={{...selectStyle, width: '100%', marginBottom: '10px'}}
+              style={{...selectStyle, width: '100%', marginBottom: '15px'}}
             >
               <option value="ClassifierChain">ClassifierChain</option>
               <option value="RegressorChain">RegressorChain</option>
@@ -276,6 +359,13 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
               <option value="GatedChain">GatedChain</option>
             </select>
 
+            {/* CONTENEDOR DINÁMICO RECURSIVO */}
+            <div style={orderList}>
+              <OrchestrationPlanViewer 
+                plan={dossier?.data?.orchestration_plan} 
+                onMoveItem={moveOrderItem} 
+              />
+            </div>
             <div style={orderList}>
               {dossier?.data?.orchestration_plan?.order && dossier.data.orchestration_plan.order.length > 0 ? (
                 dossier.data.orchestration_plan.order.map((target: string, i: number) => (

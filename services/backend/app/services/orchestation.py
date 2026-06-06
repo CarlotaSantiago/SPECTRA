@@ -88,6 +88,7 @@ def compute_threshold(matrix: pd.DataFrame, threshold_cfg) -> float:
 
 def detect_structural_absences(df: pd.DataFrame, targets: list[str], umbral: float = 0.95) -> dict | None:     
     # Detección limpia de ausencias estructurales (MNAR)
+    print("Detecting structural absences with umbral:", umbral)
     for t1 in targets: 
         mask = df[t1].isna() | (df[t1].astype(str).str.strip().isin(['OTHER', 'otros', 'NaN', 'nan', '']))
         if mask.sum() == 0:             
@@ -96,7 +97,8 @@ def detect_structural_absences(df: pd.DataFrame, targets: list[str], umbral: flo
             t2 for t2 in targets             
             if t2 != t1 and (df.loc[mask, t2].isna() | df.loc[mask, t2].astype(str).str.strip().isin(['NaN', 'nan', ''])).mean() >= umbral         
         ]         
-        if dependents:             
+        if dependents:  
+            print(f"Structural absence detected: {t1} with dependents {dependents}")           
             return {'gating': t1, 'dependents': dependents}     
     return None
 
@@ -124,14 +126,17 @@ def build_chain_strategy(df, matrix, tipos, threshold_cfg, toon_dossier) -> dict
     # 1. Control de ausencias estructurales estructural (Pág. 18)
     gated = detect_structural_absences(df, targets)
     if gated:
+        gating = gated['gating']
+        dependents = gated['dependents']
+        print(f"Applying GatedChain strategy with gating variable '{gating}' and dependents {dependents}")
         subset_df = df[df[gated['gating']].notna()]
         sub_matrix = compute_target_dependency_matrix(subset_df, gated['dependents'], tipos)
         
         # RETORNO EXACTO SEGÚN PÁGINA 18 (Sin clave 'order' artificial en la raíz)
         return {
             'strategy':     'GatedChain',             
-            'gating':       gated['gating'],             
-            'dependents':   gated['dependents'], 
+            'gating':       gating,             
+            'dependents':   dependents, 
             'max_dependency': max_dep,         
             'sub_strategy': build_chain_strategy(                 
                 subset_df, sub_matrix, tipos, threshold_cfg, toon_dossier
@@ -140,7 +145,7 @@ def build_chain_strategy(df, matrix, tipos, threshold_cfg, toon_dossier) -> dict
 
     # 2. Objetivos independientes
     if max_dep < threshold:
-        return {'strategy': 'MultiOutput', 'order': targets, 'max_dependency': max_dep}
+        return {'strategy': 'MultiOutput', 'order': targets, 'gating': None, 'dependents': [], 'max_dependency': max_dep}
 
     order = resolve_chain_order(matrix, threshold)
     get_lvl = lambda t: tipos.get(t).get('technical_level') if isinstance(tipos.get(t), dict) else tipos.get(t)
@@ -150,7 +155,7 @@ def build_chain_strategy(df, matrix, tipos, threshold_cfg, toon_dossier) -> dict
  
     # 3. Regressor Chain
     if todos_num:
-        return {'strategy': 'RegressorChain',  'order': order, 'max_dependency': max_dep}
+        return {'strategy': 'RegressorChain',  'order': order, 'gating': None, 'dependents': [], 'max_dependency': max_dep}
 
     # 4. Classifier Chain
     if todos_cat:
@@ -167,8 +172,10 @@ def build_chain_strategy(df, matrix, tipos, threshold_cfg, toon_dossier) -> dict
             'strategy':   'ClassifierChain',             
             'order':       order,             
             'target_profiles': target_profiles,
+            'gating': None,
+            'dependents': [],
             'max_dependency': max_dep
         }
 
     # 5. Hybrid Chain (Fallback)
-    return {'strategy': 'HybridChain', 'order': order, 'max_dependency': max_dep}
+    return {'strategy': 'HybridChain', 'order': order, 'gating': None, 'dependents': [], 'max_dependency': max_dep}

@@ -273,12 +273,14 @@ def build_staged_prompt_1_gating(toon_dossier: dict) -> str:
     feature_profiles = {}
     for f in features:
         if f in cat_eval:
+            print(f"Feature '{f}' is categorical with profile: {cat_eval[f]}")
             feature_profiles[f] = {
                 "subclass": cat_eval[f].get("subclass"),
                 "null_ratio": cat_eval[f].get("null_ratio", 0),
                 "user_mandatory": cat_eval[f].get("user_mandatory", False),
             }
         elif f in class_eval:
+            print(f"Feature '{f}' is classified with profile: {class_eval[f]}")
             feature_profiles[f] = {
                 "subclass": class_eval[f].get("subclass"),
                 "null_ratio": class_eval[f].get("null_ratio", 0),
@@ -784,8 +786,10 @@ def _run_staged_mode(
     Modo STAGED: tres llamadas focalizadas con validación entre cada una.
     Self-healing por fragmento antes de continuar al siguiente.
     """
+    print("[STAGED] Detectando plan de orquestación en el dossier...")
     plan             = toon_dossier.get("orchestration_plan", {})
-    gating_target    = plan.get("gating_target", "")
+    print(f"Plan de orquestación detectado: {plan}")
+    gating_target    = plan.get("gating", "")
     dependent_targets = plan.get("dependents", [])
 
     if not gating_target:
@@ -951,6 +955,7 @@ def orchestrate_pipeline(
             result = _run_full_mode(toon_str, ollama_url, model_name)
             mode   = "full_fallback"
         else:
+            print("[ROUTER] Ejecutando en modo STAGED con llamadas focalizadas...")
             result = _run_staged_mode(toon_dict, ollama_url, model_name)
 
     return {**result, "mode": mode, "model_info": model_info}

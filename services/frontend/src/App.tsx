@@ -8,7 +8,7 @@ function App() {
   return (
     <Router>
       <header style={{ padding: '10px', borderBottom: '1px solid #536765', fontSize: '24px', fontWeight: 'bold', color: '#536765', textAlign: 'center' }}>
-        Proyectito
+        SPECTRA
       </header>
 
       <Routes>

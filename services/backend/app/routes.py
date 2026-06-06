@@ -319,6 +319,8 @@ def process_state_1(data: Dossier):
         json_tecnico["orchestration_plan"] = {
             "strategy": orquestation['strategy'],
             "order": orquestation['order'] if orquestation.get('order') is not None else [],
+            "gating": orquestation.get('gating'),
+            "dependents": orquestation.get('dependents', []),
             "max_dependency": max_dep
         }
         with open("toon_dossier.json", "w", encoding="utf-8") as f:
@@ -440,16 +442,16 @@ def process_state_2(data: Dict[str, Any]):
         dossier = data["dossier"]
         model_name = data["model"]
         dataset_path = data['path']
-        print(dataset_path)
         output_path = data.get("output_path", "./model")
         manifest = data.get("manifest", dossier.get("global_metadata", {}).get("manifest", {"execution_mode": "auto"}))
 
-        if "ia.drorras.info" in model_name or "." in model_name:
+        if "ia.drorras.info" in model_name:
             ollama_url = "http://ia.drordas.info:11434"
             model_name = model_name.split("/")[-1]
+            print(f"Using external Ollama at {ollama_url} with model '{model_name}'")
         else:
             ollama_url = "http://localhost:11434"
-
+            print(f"Using local Ollama with model '{model_name}' at {ollama_url}")
         search_resolution = resolve_search_strategy(dossier)
         # 2. Aseguramos que la estructura interna exista para no arrojar KeyError
         if "global_metadata" not in dossier:
@@ -458,13 +460,12 @@ def process_state_2(data: Dict[str, Any]):
             dossier["global_metadata"]["search_config"] = {
                 "max_iter": 50, "max_combinations": 200, "cv_folds": 10, "timeout_minutes": 30
             }
-
         # 3. Mutamos la propiedad 'search_strategy' de "auto" a la seleccionada estadísticamente
         dossier["global_metadata"]["search_config"]["search_strategy"] = search_resolution["selected_strategy"]
         dossier["global_metadata"]["search_config"]["resolution_reasoning"] = search_resolution["reasoning"]
         # 4. Adjuntamos los espacios de búsqueda base estructurados para que Ollama sepa los rangos exactos
         dossier["base_hyperparameter_spaces"] = DEFAULT_SEARCH_SPACES
-
+        
         typo_correlation = dossier["orchestration_plan"]["strategy"]
         max_dependency = dossier["orchestration_plan"]["max_dependency"]
         dependency = "High" if (isinstance(max_dependency, (int, float)) and max_dependency > 0.15) else "Low"
@@ -475,7 +476,7 @@ def process_state_2(data: Dict[str, Any]):
                     info["dependency"] = f"High (linked to {dep_target})"
                 elif dep_target != target:
                     info["dependency"] = f"Low (linked to {dep_target})"
-        toon_dossier = build_toon_s2(dossier, typo_correlation, max_dependency, dependency, dossier["targets_evaluation"], data)
+        # toon_dossier = build_toon_s2(dossier, typo_correlation, max_dependency, dependency, dossier["targets_evaluation"], data)
         print(f"[STATE 2] Evaluando modelo '{model_name}' mediante Router Inteligente en: {ollama_url}")
         router_result = orchestrate_pipeline(
             toon_dossier=dossier, 
