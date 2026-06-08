@@ -7,6 +7,7 @@ import os
 app = FastAPI()
 
 os.makedirs('uploads', exist_ok=True)
+os.makedirs('model', exist_ok=True)
 # 3. CONFIGURACIÓN DE CORS (Sin esto, el navegador bloqueará la petición)
 app.add_middleware(
     CORSMiddleware,

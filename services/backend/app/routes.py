@@ -4,27 +4,26 @@ import json
 import logging
 import os
 import re
-import subprocess
 import requests
 
 import numpy as np
 import pandas as pd
 import torch
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from fastapi.responses import JSONResponse
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_object_dtype, is_string_dtype
 from pydantic import BaseModel
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.preprocessing import LabelEncoder
 from typing import Any, Dict, List
-from app.services.model_router import orchestrate_pipeline
 from app.services.classify import classify_data, compute_information_gain, encode_series
 from app.services.device_detection import get_device
 from app.services.routeOllama import call_ollama
 from app.services.processor import limpiar_datos
-from app.services.build_toon import build_toon_payload, build_toon_s2, integrar_analisis_llm
+from app.services.build_toon import build_toon_payload, integrar_analisis_llm
 from app.services.strarified_sampling import stratified_sample_100
 from app.services.orchestation import build_chain_strategy, compute_target_dependency_matrix
-from app.services.resolve_search import resolve_search_strategy, DEFAULT_SEARCH_SPACES
+from app.services.training_service_proxy import proxy_process_state2
 
 logger = logging.getLogger(__name__)
 
@@ -341,182 +340,11 @@ def process_state_1(data: Dossier):
 
 
 
-# --- CONFIGURACIÓN DE REPARACIÓN ---
-MAX_ATTEMPTS = 3
-UNRECOVERABLE_ERRORS = ["MemoryError", "CUDA out of memory", "SystemExit", "OSError: [Errno 28]"]
-
-def _docker_available() -> bool: 
-    """
-    Detecta automáticamente si Docker está instalado y en ejecución en el host.
-    """
-    try: 
-        r = subprocess.run(['docker', 'info'], capture_output=True, timeout=5) 
-        return r.returncode == 0 
-    except (FileNotFoundError, subprocess.TimeoutExpired): 
-        return False 
-
-def _run_in_subprocess(code: str) -> subprocess.CompletedProcess: 
-    """
-    Ejecución clásica mediante un subproceso local de Python.
-    """
-    filename = "temp_execution_script.py"
-    with open(filename, 'w', encoding='utf-8') as f: 
-        f.write(code) 
-    return subprocess.run( 
-        ['python', filename], 
-        capture_output=True, text=True, timeout=900 
-    ) 
-
-def _run_in_docker(code: str, dataset_path: str, output_path: str) -> subprocess.CompletedProcess: 
-    """
-    Ejecución en un entorno 100% aislado dentro de un contenedor Docker.
-    Monta los volúmenes en modo lectura para datos y escritura para salidas.
-    """
-    filename = "/tmp/script_automl.py"
-    with open(filename, 'w', encoding='utf-8') as f: 
-        f.write(code) 
-    
-    cmd = [ 
-        'docker', 'run', '--rm', 
-        '-v', f'{dataset_path}:/data:ro',           # dataset en modo sólo lectura (read-only)
-        '-v', f'{output_path}:/output',             # carpeta de salida para artefactos (.joblib)
-        '-v', f'{filename}:/app/run.py',            # mapeo del script generado
-        'python:3.11-slim', 
-        'bash', '-c', 
-        'pip install -q scikit-learn lightgbm xgboost joblib optuna pandas openpyxl pyarrow && python /app/run.py' 
-    ] 
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=960) 
-
-def run_script_in_sandbox(script_content: str, dataset_path: str, output_path: str, manifest: dict) -> subprocess.CompletedProcess: 
-    """
-    Determina de manera inteligente y según el manifest cómo ejecutar el código.
-    """
-    # Leer el modo deseado del manifest. Si no se indica o es 'auto', se auto-detecta.
-    mode = manifest.get('execution_mode', 'auto')
-    
-    if mode == 'auto':
-        use_docker = _docker_available()
-    elif mode == 'docker':
-        if not _docker_available():
-            # Forzamos docker pero no está disponible: levantamos un proceso ficticio con el error
-            res = subprocess.CompletedProcess(args=[], returncode=1)
-            res.stderr = "Error: Docker mode forced in manifest but Docker is not available or running."
-            return res
-        use_docker = True
-    else:  # 'subprocess'
-        use_docker = False
-
-    if use_docker: 
-        return _run_in_docker(script_content, dataset_path, output_path) 
-    return _run_in_subprocess(script_content) 
-
-def classify_error(stderr: str) -> str:     
-    """
-    Clasifica el error para orientar de forma precisa la estrategia del LLM.
-    """
-    if 'SyntaxError' in stderr or 'IndentationError' in stderr: 
-        return 'syntax'    
-    if 'ModuleNotFoundError' in stderr or 'ImportError' in stderr: 
-        return 'import'  
-    if any(k in stderr for k in ['shape', 'dimension', 'mismatch']): 
-        return 'shape'     
-    return 'structural'  
-
-def build_repair_prompt(dossier, broken_code, stderr, attempt, error_type) -> str:     
-    """
-    Construye un prompt de reparación parametrizado, indicando el tipo de error e intento actual.
-    """
-    return f'''  
-    ATTEMPT {attempt} of {MAX_ATTEMPTS}. Error type: {error_type}.  
-    ERROR LOG: {stderr} 
-    ORIGINAL CODE: {broken_code}  
-    ORIGINAL DOSSIER: {dossier}  
-    
-    Fix ONLY what the error log points to.  
-    Preserve chain strategy, model choices, and metric choices.  
-    Return ONLY the corrected Python code block. '''
-
 @router.post("/process-state2")
 def process_state_2(data: Dict[str, Any]):
     try:
-        dossier = data["dossier"]
-        model_name = data["model"]
-        dataset_path = data['path']
-        output_path = data.get("output_path", "./model")
-        manifest = data.get("manifest", dossier.get("global_metadata", {}).get("manifest", {"execution_mode": "auto"}))
-
-        if "ia.drorras.info" in model_name:
-            ollama_url = "http://ia.drordas.info:11434"
-            model_name = model_name.split("/")[-1]
-            print(f"Using external Ollama at {ollama_url} with model '{model_name}'")
-        else:
-            ollama_url = "http://localhost:11434"
-            print(f"Using local Ollama with model '{model_name}' at {ollama_url}")
-        search_resolution = resolve_search_strategy(dossier)
-        # 2. Aseguramos que la estructura interna exista para no arrojar KeyError
-        if "global_metadata" not in dossier:
-            dossier["global_metadata"] = {}
-        if "search_config" not in dossier["global_metadata"]:
-            dossier["global_metadata"]["search_config"] = {
-                "max_iter": 50, "max_combinations": 200, "cv_folds": 10, "timeout_minutes": 30
-            }
-        # 3. Mutamos la propiedad 'search_strategy' de "auto" a la seleccionada estadísticamente
-        dossier["global_metadata"]["search_config"]["search_strategy"] = search_resolution["selected_strategy"]
-        dossier["global_metadata"]["search_config"]["resolution_reasoning"] = search_resolution["reasoning"]
-        # 4. Adjuntamos los espacios de búsqueda base estructurados para que Ollama sepa los rangos exactos
-        dossier["base_hyperparameter_spaces"] = DEFAULT_SEARCH_SPACES
-        
-        typo_correlation = dossier["orchestration_plan"]["strategy"]
-        max_dependency = dossier["orchestration_plan"]["max_dependency"]
-        dependency = "High" if (isinstance(max_dependency, (int, float)) and max_dependency > 0.15) else "Low"
-        for target, info in dossier["targets_evaluation"].items():
-            dependencies = dossier["target_dependency_matrix"][target]
-            for dep_target, dep_value in dependencies.items():
-                if dep_value > 0.15 and dep_target != target:
-                    info["dependency"] = f"High (linked to {dep_target})"
-                elif dep_target != target:
-                    info["dependency"] = f"Low (linked to {dep_target})"
-        # toon_dossier = build_toon_s2(dossier, typo_correlation, max_dependency, dependency, dossier["targets_evaluation"], data)
-        print(f"[STATE 2] Evaluando modelo '{model_name}' mediante Router Inteligente en: {ollama_url}")
-        router_result = orchestrate_pipeline(
-            toon_dossier=dossier, 
-            ollama_url=ollama_url, 
-            model_name=model_name
-        )
-
-        generated_code = router_result.get("code")
-        if generated_code:
-            with open("orchestation_script.py", "w", encoding="utf-8") as f:
-                f.write(generated_code)
-            
-            print("[STATE 2] Enviando el script definitivo al entorno de ejecución Sandbox...")
-            execution_result = run_script_in_sandbox(generated_code, dataset_path, output_path, manifest)
-
-            if execution_result.returncode == 0:
-                with open("orchestation_script.py", "a", encoding="utf-8") as f:
-                    f.write(f"\n# --- EJECUCIÓN EXITOSA FINAL CON MODELO {model_name} ---\n")
-                    f.write(execution_result.stdout)
-                    
-                return {
-                    "status": "ok", 
-                    "script": generated_code, 
-                    "output": execution_result.stdout,
-                    "model_info": router_result.get("model_info")  # Nos dice qué modo y cuántos Billones de parámetros usó
-                }
-            else:
-                return {
-                    "status": "failed", 
-                    "last_error": execution_result.stderr, 
-                    "model_info": router_result.get("model_info")
-                }
-        else:
-            return {
-                "status": "router_failed", 
-                "reason": router_result.get("error", "El router no pudo generar un código limpio ejecutable.")
-            }
+        body, status_code = proxy_process_state2(data)
+        return JSONResponse(content=body, status_code=status_code)
     except Exception as e:
-        logger.error(f"process_state_2 failed: {e}")
-        return {
-            "status": "error",
-            "message": str(e)
-        }
+        logger.error("process_state_2 proxy failed: %s", e)
+        return {"status": "error", "message": str(e)}

@@ -3,5 +3,7 @@
         "frontend",
         "backend",
         "front_and_back"
-    ]
+    ],
+    "python.defaultInterpreterPath": "${workspaceFolder}/services/backend/.venv/bin/python",
+    "python.terminal.activateEnvironment": true
 }

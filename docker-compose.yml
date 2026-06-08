@@ -1,0 +1,18 @@
+services:
+  training-service:
+    image: ghcr.io/jorgercid/spectra-training-service:latest
+    # build alternativo para dev sin pull:
+    # build: ../micro
+    ports:
+      - "8001:8000"
+    env_file:
+      - ../micro/.env
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      SANDBOX_ALLOWED_BASE_DIRS: /app/uploads,/app/model,/app
+    volumes:
+      - ./services/backend/uploads:/app/uploads
+      - ./services/backend/model:/app/model
+      # - /var/run/docker.sock:/var/run/docker.sock  # descomentar para execution_mode docker/auto
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
