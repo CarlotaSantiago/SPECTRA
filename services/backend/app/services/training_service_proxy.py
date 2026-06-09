@@ -8,6 +8,13 @@ logger = logging.getLogger(__name__)
 
 TRAINING_SERVICE_URL = os.getenv("TRAINING_SERVICE_URL", "http://localhost:8001").rstrip("/")
 TRAINING_SERVICE_TIMEOUT = float(os.getenv("TRAINING_SERVICE_TIMEOUT", "1200"))
+LLM_PROVIDERS_TIMEOUT = 5.0
+
+_EMPTY_LLM_PROVIDERS: dict[str, Any] = {
+    "default_provider": "ollama",
+    "default_model": "",
+    "providers": [],
+}
 
 
 def proxy_process_state2(data: dict[str, Any]) -> tuple[dict[str, Any], int]:
@@ -48,5 +55,31 @@ def proxy_process_state2(data: dict[str, Any]) -> tuple[dict[str, Any], int]:
             "status": "error",
             "message": "Training service returned an invalid response",
         }, 200
+
+    return body, response.status_code
+
+
+def proxy_llm_providers() -> tuple[dict[str, Any], int]:
+    url = f"{TRAINING_SERVICE_URL}/llm/providers"
+    try:
+        response = requests.get(url, timeout=LLM_PROVIDERS_TIMEOUT)
+    except requests.exceptions.ConnectionError as exc:
+        logger.warning("Training service unavailable for LLM providers at %s: %s", url, exc)
+        return _EMPTY_LLM_PROVIDERS.copy(), 200
+    except requests.exceptions.Timeout:
+        logger.warning("Training service LLM providers timed out after %ss", LLM_PROVIDERS_TIMEOUT)
+        return _EMPTY_LLM_PROVIDERS.copy(), 200
+    except requests.exceptions.RequestException as exc:
+        logger.warning("Training service LLM providers request failed: %s", exc)
+        return _EMPTY_LLM_PROVIDERS.copy(), 200
+
+    try:
+        body = response.json()
+    except ValueError:
+        logger.warning(
+            "Training service returned non-JSON LLM providers response (HTTP %s)",
+            response.status_code,
+        )
+        return _EMPTY_LLM_PROVIDERS.copy(), 200
 
     return body, response.status_code

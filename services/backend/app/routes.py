@@ -23,7 +23,7 @@ from app.services.processor import limpiar_datos
 from app.services.build_toon import build_toon_payload, integrar_analisis_llm
 from app.services.strarified_sampling import stratified_sample_100
 from app.services.orchestation import build_chain_strategy, compute_target_dependency_matrix
-from app.services.training_service_proxy import proxy_process_state2
+from app.services.training_service_proxy import proxy_llm_providers, proxy_process_state2
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,13 @@ def get_available_models():
 
     # Devolvemos la combinación de ambos orígenes
     return {"status": "ok", "models": local_models + profesor_models}
+
+
+@router.get("/llm/providers")
+def get_llm_providers():
+    body, status = proxy_llm_providers()
+    return JSONResponse(content=body, status_code=status)
+
 
 @router.post("/upload") # 2. Cambiamos 'app.post' por 'router.post'
 async def handle_upload(

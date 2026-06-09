@@ -91,7 +91,7 @@ const ViewDataPage = () => {
   // Dentro de ViewDataPage, al recibir el state o inicializar:
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { models: ollamaModels, loading: loadingModels } = useOllamaModels();
+  const { models: ollamaModels, loading: loadingModels, resolveSelection } = useOllamaModels();
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [selectedModel, setSelectedModel] = useState(""); // <-- 2. Estado del modelo
   
@@ -283,11 +283,13 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
       return;
     }
 
+    const { model, provider } = resolveSelection(selectedModel);
     const payload = {
       dossier: dossier.data, // Los datos editados (incluyendo mappings y orden)
       path: dossier.path,
       extension: dossier.extension,
-      model: selectedModel,
+      model,
+      ...(provider && { provider }),
     };
     console.log("Payload a enviar:", payload);
     try {
