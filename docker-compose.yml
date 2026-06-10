@@ -1,12 +1,12 @@
 services:
   training-service:
-    image: ghcr.io/jorgercid/spectra-training-service:latest
+    # image: ghcr.io/jorgercid/spectra-training-service:latest
     # build alternativo para dev sin pull:
-    # build: ../micro
+    build: /home/jorgerc/Desktop/spectra-training-service
     ports:
-      - "8001:8000"
+      - "8001:8001"
     env_file:
-      - ../micro/.env
+      - /home/jorgerc/Desktop/spectra-training-service/.env
     environment:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       SANDBOX_ALLOWED_BASE_DIRS: /app/uploads,/app/model,/app

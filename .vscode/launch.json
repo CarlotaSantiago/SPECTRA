@@ -23,6 +23,26 @@
       "console": "integratedTerminal"
     },
     {
+      "name": "Backend: FastAPI (uvicorn) no reload",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000"
+      ],
+      "cwd": "${workspaceFolder}/services/backend",
+      "jinja": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/services/backend",
+        "TRAINING_SERVICE_URL": "http://localhost:8001"
+      },
+      "console": "integratedTerminal"
+    },
+    {
       "name": "Frontend: Vite",
       "type": "node",
       "request": "launch",

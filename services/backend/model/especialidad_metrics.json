@@ -1,0 +1,23 @@
+{
+  "target": "especialidad",
+  "model_file": "especialidad_model.joblib",
+  "best_params": {
+    "learning_rate": 0.1,
+    "max_depth": 7,
+    "n_estimators": 300,
+    "num_leaves": 31,
+    "subsample": 0.85
+  },
+  "optimization_metric": "f1",
+  "cv_score": 1.0,
+  "priority_metrics": [
+    "F1-Score",
+    "Recall",
+    "Kappa"
+  ],
+  "metrics": {
+    "f1_score": 1.0,
+    "recall": 1.0,
+    "kappa": 1.0
+  }
+}

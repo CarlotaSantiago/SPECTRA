@@ -1,0 +1,20 @@
+{
+  "target": "prioridad",
+  "model_file": "prioridad_model.joblib",
+  "best_params": {
+    "max_depth": 5,
+    "max_features": "sqrt",
+    "min_samples_split": 10,
+    "n_estimators": 500
+  },
+  "optimization_metric": "f1",
+  "cv_score": 0.5920463770584491,
+  "priority_metrics": [
+    "F1-Score",
+    "Kappa"
+  ],
+  "metrics": {
+    "f1_score": 0.6593324090509388,
+    "kappa": 0.48174604966111956
+  }
+}
