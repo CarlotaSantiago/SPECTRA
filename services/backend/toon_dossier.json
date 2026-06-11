@@ -4,8 +4,8 @@
         "features": 4,
         "targets": [
             "especialidad",
-            "prioridad",
-            "sala"
+            "sala",
+            "prioridad"
         ],
         "sampling_strategy": "Stratified_MultiTarget_Combined"
     },
@@ -14,8 +14,8 @@
             "technical_level": 2,
             "ig_scores": {
                 "especialidad": 0.4967,
-                "prioridad": 0.4967,
-                "sala": 0.4967
+                "sala": 0.4967,
+                "prioridad": 0.4967
             },
             "unique_pool": [
                 "RADIOLOGIA DE ABDOMEN         ",
@@ -32,7 +32,7 @@
             "user_mandatory": false,
             "subclass": "NOMINAL",
             "mapping": null,
-            "reasoning": "The unique values represent distinct medical procedures without inherent order."
+            "reasoning": "The 'descrip' column contains distinct medical procedure descriptions with no inherent order."
         }
     },
     "targets_evaluation": {
@@ -40,19 +40,19 @@
             "technical_level": 1,
             "subclass": "NOMINAL",
             "mapping": null,
-            "reasoning": "Categories like MSK and OTHER are distinct without hierarchical ordering."
-        },
-        "prioridad": {
-            "technical_level": 2,
-            "subclass": "ORDINAL",
-            "mapping": "{'A': 0, 'B': 1, 'C': 2}",
-            "reasoning": "Values A, B, C represent priority levels with clear hierarchical ordering."
+            "reasoning": "Target 'especialidad' represents distinct medical specialties with no natural ordering."
         },
         "sala": {
             "technical_level": 2,
             "subclass": "NOMINAL",
             "mapping": null,
-            "reasoning": "Codes H and NH represent distinct locations without inherent order."
+            "reasoning": "Target 'sala' denotes distinct departments or rooms with no inherent hierarchy."
+        },
+        "prioridad": {
+            "technical_level": 2,
+            "subclass": "ORDINAL",
+            "mapping": "{'A': 0, 'B': 1, 'C': 2}",
+            "reasoning": "Target 'prioridad' has a clear priority order from highest (A) to lowest (C)."
         }
     },
     "classified_evaluation": {
@@ -61,7 +61,7 @@
             "r_ratio": 0.0091,
             "technical_level": 3,
             "subclass": "discrete",
-            "user_mandatory": true,
+            "user_mandatory": false,
             "unique_pool": [
                 "90",
                 "73",
@@ -85,43 +85,9 @@
                 "75"
             ],
             "information_gain": {
-                "especialidad": 0.0159,
-                "prioridad": 0.2179,
-                "sala": 0.0383
-            }
-        },
-        "sospechadiag": {
-            "nunique": 6394,
-            "r_ratio": 0.6244,
-            "technical_level": 3,
-            "subclass": "discrete",
-            "user_mandatory": false,
-            "unique_pool": [
-                "HIPERTIROIDISMO                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ",
-                "control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ",
-                "Ecografía tiroidea control nódulos TR3 >15 milímetros                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ",
-                "BMN.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            ",
-                "Ecografía seguimiento                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           ",
-                "Control de nódulos tiroideos                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ",
-                "Valorar nódulos                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ",
-                "Control de NT TR3>25 milímetros                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ",
-                "adenopatía                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ",
-                "Control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ",
-                "Control BMN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ",
-                "BMN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ",
-                "Control evolutivo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ",
-                "NÓDULOS TIROIDEOS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ",
-                "Control de nódulo tiroideo TR4-5 >15 milímetros                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ",
-                "PROBABLE QUISTE SEBÁCEO                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ",
-                "Nódulo TR5.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ",
-                ".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ",
-                "Control tiroides multinodular con hipermetabolismo en LTI en tomografía por emisión de positrones                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ",
-                "Antecedente de carcinoma papilar de Tiroides                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           "
-            ],
-            "information_gain": {
-                "especialidad": 0.2869,
-                "prioridad": 0.3533,
-                "sala": 0.4877
+                "especialidad": 0.0198,
+                "sala": 0.0325,
+                "prioridad": 0.2153
             }
         },
         "datosclini": {
@@ -153,27 +119,61 @@
                 "Paciente con antecedentes de quistes radiculares intervenidos en 2023. tirotropina (hormona estimulante del tiroides) 2.33. Presenta aumento de volumen bilateral de 1 año de evolución adyacente a glande submandibulares. Solicito descartar complicaciones. U saludo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              "
             ],
             "information_gain": {
-                "especialidad": 0.2368,
-                "prioridad": 0.3297,
-                "sala": 0.4434
+                "especialidad": 0.2355,
+                "sala": 0.444,
+                "prioridad": 0.3346
+            }
+        },
+        "sospechadiag": {
+            "nunique": 6394,
+            "r_ratio": 0.6244,
+            "technical_level": 3,
+            "subclass": "discrete",
+            "user_mandatory": false,
+            "unique_pool": [
+                "HIPERTIROIDISMO                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ",
+                "control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ",
+                "Ecografía tiroidea control nódulos TR3 >15 milímetros                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ",
+                "BMN.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            ",
+                "Ecografía seguimiento                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           ",
+                "Control de nódulos tiroideos                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    ",
+                "Valorar nódulos                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 ",
+                "Control de NT TR3>25 milímetros                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ",
+                "adenopatía                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      ",
+                "Control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ",
+                "Control BMN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ",
+                "BMN                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ",
+                "Control evolutivo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ",
+                "NÓDULOS TIROIDEOS                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ",
+                "Control de nódulo tiroideo TR4-5 >15 milímetros                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ",
+                "PROBABLE QUISTE SEBÁCEO                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ",
+                "Nódulo TR5.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ",
+                ".                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               ",
+                "Control tiroides multinodular con hipermetabolismo en LTI en tomografía por emisión de positrones                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                ",
+                "Antecedente de carcinoma papilar de Tiroides                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           "
+            ],
+            "information_gain": {
+                "especialidad": 0.2847,
+                "sala": 0.4832,
+                "prioridad": 0.3545
             }
         }
     },
     "target_dependency_matrix": {
         "especialidad": {
             "especialidad": 1.0,
-            "prioridad": 1.0,
-            "sala": 1.0
-        },
-        "prioridad": {
-            "especialidad": 1.0,
-            "prioridad": 1.0,
-            "sala": 0.7675
+            "sala": 1.0,
+            "prioridad": 1.0
         },
         "sala": {
             "especialidad": 1.0,
-            "prioridad": 0.7675,
-            "sala": 1.0
+            "sala": 1.0,
+            "prioridad": 0.7675
+        },
+        "prioridad": {
+            "especialidad": 1.0,
+            "sala": 0.7675,
+            "prioridad": 1.0
         }
     },
     "orchestration_plan": {
@@ -181,8 +181,8 @@
         "order": [],
         "gating": "especialidad",
         "dependents": [
-            "prioridad",
-            "sala"
+            "sala",
+            "prioridad"
         ],
         "max_dependency": 0.7675
     }

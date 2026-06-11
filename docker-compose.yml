@@ -1,12 +1,12 @@
 services:
   training-service:
-    # image: ghcr.io/jorgercid/spectra-training-service:latest
+    image: ghcr.io/jorgercid/spectra-training-service:latest
     # build alternativo para dev sin pull:
-    build: /home/jorgerc/Desktop/spectra-training-service
+    # build: .../spectra-training-service
     ports:
-      - "8001:8001"
+      - "8001:8001"  # El puerto que se mapea debe coincidir con el puerto dónde corre el microservicio, se configura en el .env del microservicio
     env_file:
-      - /home/jorgerc/Desktop/spectra-training-service/.env
+      # - .../spectra-training-service/.env  # El .env tiene que ser el enviroment del microservicio, no el del backend
     environment:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       SANDBOX_ALLOWED_BASE_DIRS: /app/uploads,/app/model,/app
