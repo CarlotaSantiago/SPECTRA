@@ -1,7 +1,7 @@
 # Python / Backend
 __pycache__/
-.venv/
-.env
+backend/.venv/
+backend/.env
 *.pyc
 
 # Node.js / Frontend
@@ -11,11 +11,11 @@ dist/          # La carpeta que crea Vite al compilar
 .vscode/       # Configuración personal de tu editor (opcional)
 
 # Variables de entorno
-.env.local
-.env.development.local
+backend/.env.local
+backend/.env.development.local
 
 #QUitar data
-./backend/uploads/*
-./backend/models/*
-./backend/payload.json
-./backend/toon.txt
+backend/uploads/*
+backend/model/*
+backend/payload.json
+backend/toon_dossier.txt

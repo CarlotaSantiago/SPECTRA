@@ -2,20 +2,19 @@
   "target": "sala",
   "model_file": "sala_model.joblib",
   "best_params": {
-    "colsample_bytree": 1.0,
-    "learning_rate": 0.05,
-    "max_depth": 5,
-    "n_estimators": 500,
-    "subsample": 0.9
+    "model_name": "XGBClassifier",
+    "colsample_bytree": 0.9,
+    "learning_rate": 0.1,
+    "max_depth": 7,
+    "n_estimators": 100,
+    "subsample": 0.7
   },
-  "optimization_metric": "kappa",
-  "cv_score": 0.31807544507309693,
+  "optimization_metric": "f1",
+  "cv_score": 0.8944315628876787,
   "priority_metrics": [
-    "Kappa",
     "F1-Score"
   ],
   "metrics": {
-    "kappa": 0.7487399834527573,
-    "f1_score": 0.8779276082327893
+    "f1_score": 0.8957850299331336
   }
 }

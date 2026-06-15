@@ -249,7 +249,7 @@ def process_state_1(data: Dossier):
             if col_data["technical_level"] in [1, 3, 4]:
                 dossier["classified_evaluation"][col] = col_data
 
-        save_path = os.path.join("uploads", "datos_limpios.xlsx")
+        save_path = "uploads/datos_limpios.xlsx"
         new_data = pd.DataFrame(columnas_limpias)
         for target in data.targets:
             if target in df.columns:

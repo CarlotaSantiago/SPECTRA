@@ -29,30 +29,18 @@
                 "ECOS MAMA Y MAMOGRAFIAS       ",
                 "RADIOLOGIA MUSCULOESQUELETICA "
             ],
-            "user_mandatory": false,
-            "subclass": "NOMINAL",
-            "mapping": null,
-            "reasoning": "The 'descrip' column contains distinct medical procedure descriptions with no inherent order."
+            "user_mandatory": false
         }
     },
     "targets_evaluation": {
         "especialidad": {
-            "technical_level": 1,
-            "subclass": "NOMINAL",
-            "mapping": null,
-            "reasoning": "Target 'especialidad' represents distinct medical specialties with no natural ordering."
+            "technical_level": 1
         },
         "sala": {
-            "technical_level": 2,
-            "subclass": "NOMINAL",
-            "mapping": null,
-            "reasoning": "Target 'sala' denotes distinct departments or rooms with no inherent hierarchy."
+            "technical_level": 2
         },
         "prioridad": {
-            "technical_level": 2,
-            "subclass": "ORDINAL",
-            "mapping": "{'A': 0, 'B': 1, 'C': 2}",
-            "reasoning": "Target 'prioridad' has a clear priority order from highest (A) to lowest (C)."
+            "technical_level": 2
         }
     },
     "classified_evaluation": {
@@ -61,7 +49,7 @@
             "r_ratio": 0.0091,
             "technical_level": 3,
             "subclass": "discrete",
-            "user_mandatory": false,
+            "user_mandatory": true,
             "unique_pool": [
                 "90",
                 "73",
@@ -85,9 +73,9 @@
                 "75"
             ],
             "information_gain": {
-                "especialidad": 0.0198,
-                "sala": 0.0325,
-                "prioridad": 0.2153
+                "especialidad": 0.0176,
+                "sala": 0.0381,
+                "prioridad": 0.2124
             }
         },
         "datosclini": {
@@ -119,9 +107,9 @@
                 "Paciente con antecedentes de quistes radiculares intervenidos en 2023. tirotropina (hormona estimulante del tiroides) 2.33. Presenta aumento de volumen bilateral de 1 año de evolución adyacente a glande submandibulares. Solicito descartar complicaciones. U saludo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              "
             ],
             "information_gain": {
-                "especialidad": 0.2355,
-                "sala": 0.444,
-                "prioridad": 0.3346
+                "especialidad": 0.2363,
+                "sala": 0.4454,
+                "prioridad": 0.3301
             }
         },
         "sospechadiag": {
@@ -153,9 +141,9 @@
                 "Antecedente de carcinoma papilar de Tiroides                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           "
             ],
             "information_gain": {
-                "especialidad": 0.2847,
-                "sala": 0.4832,
-                "prioridad": 0.3545
+                "especialidad": 0.2846,
+                "sala": 0.4845,
+                "prioridad": 0.3544
             }
         }
     },

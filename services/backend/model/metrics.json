@@ -1,67 +1,61 @@
 {
   "targets": {
+    "sala": {
+      "target": "sala",
+      "model_file": "sala_model.joblib",
+      "best_params": {
+        "model_name": "XGBClassifier",
+        "colsample_bytree": 0.9,
+        "learning_rate": 0.1,
+        "max_depth": 7,
+        "n_estimators": 100,
+        "subsample": 0.7
+      },
+      "optimization_metric": "f1",
+      "cv_score": 0.8944315628876787,
+      "priority_metrics": [
+        "F1-Score"
+      ],
+      "metrics": {
+        "f1_score": 0.8957850299331336
+      }
+    },
     "especialidad": {
       "target": "especialidad",
       "model_file": "especialidad_model.joblib",
       "best_params": {
-        "learning_rate": 0.1,
-        "max_depth": 7,
-        "n_estimators": 300,
-        "num_leaves": 31,
-        "subsample": 0.85
+        "model_name": "RandomForestClassifier",
+        "max_depth": null,
+        "max_features": "log2",
+        "min_samples_split": 2,
+        "n_estimators": 300
       },
       "optimization_metric": "f1",
       "cv_score": 1.0,
       "priority_metrics": [
-        "F1-Score",
-        "Recall",
-        "Kappa"
+        "F1-Score"
       ],
       "metrics": {
-        "f1_score": 1.0,
-        "recall": 1.0,
-        "kappa": 1.0
+        "f1_score": 1.0
       }
     },
     "prioridad": {
       "target": "prioridad",
       "model_file": "prioridad_model.joblib",
       "best_params": {
-        "max_depth": 5,
-        "max_features": "sqrt",
-        "min_samples_split": 10,
-        "n_estimators": 500
+        "model_name": "RandomForestClassifier",
+        "max_depth": null,
+        "max_features": "log2",
+        "min_samples_split": 2,
+        "n_estimators": 100
       },
       "optimization_metric": "f1",
-      "cv_score": 0.5920463770584491,
+      "cv_score": 0.6793121911984206,
       "priority_metrics": [
-        "F1-Score",
-        "Kappa"
-      ],
-      "metrics": {
-        "f1_score": 0.6593324090509388,
-        "kappa": 0.48174604966111956
-      }
-    },
-    "sala": {
-      "target": "sala",
-      "model_file": "sala_model.joblib",
-      "best_params": {
-        "colsample_bytree": 1.0,
-        "learning_rate": 0.05,
-        "max_depth": 5,
-        "n_estimators": 500,
-        "subsample": 0.9
-      },
-      "optimization_metric": "kappa",
-      "cv_score": 0.31807544507309693,
-      "priority_metrics": [
-        "Kappa",
         "F1-Score"
       ],
       "metrics": {
-        "kappa": 0.7487399834527573,
-        "f1_score": 0.8779276082327893
+        "f1_score": 0.6758188681866564
       }
     }
   }

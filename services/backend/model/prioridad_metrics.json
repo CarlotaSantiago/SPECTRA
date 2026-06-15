@@ -2,19 +2,18 @@
   "target": "prioridad",
   "model_file": "prioridad_model.joblib",
   "best_params": {
-    "max_depth": 5,
-    "max_features": "sqrt",
-    "min_samples_split": 10,
-    "n_estimators": 500
+    "model_name": "RandomForestClassifier",
+    "max_depth": null,
+    "max_features": "log2",
+    "min_samples_split": 2,
+    "n_estimators": 100
   },
   "optimization_metric": "f1",
-  "cv_score": 0.5920463770584491,
+  "cv_score": 0.6793121911984206,
   "priority_metrics": [
-    "F1-Score",
-    "Kappa"
+    "F1-Score"
   ],
   "metrics": {
-    "f1_score": 0.6593324090509388,
-    "kappa": 0.48174604966111956
+    "f1_score": 0.6758188681866564
   }
 }

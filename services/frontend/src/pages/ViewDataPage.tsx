@@ -100,7 +100,7 @@ const ViewDataPage = () => {
     if (base && !base.data.user_constraints) {
       // Inyectamos los valores predeterminados que pidió el profe
       base.data.user_constraints = {
-        cv_strategy: { type: "StratifiedKFold", folds: 10 },
+        cv_strategy: { type: "StratifiedKFold", folds: 1 },
         feature_selection_threshold: 0.05,
         allow_ensembles: true,
         optimization_priority: ["Performance", "Interpretability"],
@@ -110,8 +110,8 @@ const ViewDataPage = () => {
         },
         tuning_strategy: {
           search_type: "Bayesian_Optimization",
-          max_trials: 50,
-          timeout: 600
+          max_trials: 2,
+          timeout: 60
         }
       };
     }

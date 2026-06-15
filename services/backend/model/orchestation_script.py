@@ -50,35 +50,107 @@ print(
 import json
 import os
 import warnings
-from typing import Any, Dict, List, Optional, Tuple
 
 import joblib
 import numpy as np
 import optuna
 import pandas as pd
 from lightgbm import LGBMClassifier
-from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import cohen_kappa_score, f1_score, recall_score
+from scipy.sparse import csr_matrix, hstack
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import (
+    accuracy_score,
+    cohen_kappa_score,
+    f1_score,
+    log_loss,
+    precision_score,
+    roc_auc_score,
+)
 from sklearn.model_selection import StratifiedKFold
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import LabelEncoder, OrdinalEncoder
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 
+warnings.filterwarnings("ignore")
 optuna.logging.set_verbosity(optuna.logging.WARNING)
 
-_OUTPUT_PATH = os.environ.get("OUTPUT_PATH", ".")
-_DATASET_PATH = os.environ.get("DATASET_PATH", "/app/uploads/datos_limpios.xlsx")
+if "resolve_metric" not in globals():
 
-FEATURE_COLS = ["descrip", "edad", "sospechadiag", "datosclini"]
-GATE_TARGET = "especialidad"
-DEPENDENT_TARGETS = ["prioridad", "sala"]
-ALL_TARGETS = [GATE_TARGET] + DEPENDENT_TARGETS
+    def _f1_weighted(y_true, y_pred):
+        return f1_score(y_true, y_pred, average="weighted", zero_division=0)
 
-PRIORIDAD_MAPPING = {"A": 0, "B": 1, "C": 2}
+    def _precision_weighted(y_true, y_pred):
+        return precision_score(y_true, y_pred, average="weighted", zero_division=0)
 
-BASE_HYPERPARAMETER_SPACES = {
+    def _roc_auc(y_true, y_pred_or_proba):
+        try:
+            arr = np.asarray(y_pred_or_proba)
+            if arr.ndim == 2:
+                return roc_auc_score(
+                    y_true, y_pred_or_proba, multi_class="ovr", average="weighted"
+                )
+        except Exception:
+            pass
+        return roc_auc_score(y_true, y_pred_or_proba, multi_class="ovr", average="weighted")
+
+    METRIC_FUNCTIONS = {
+        "f1": _f1_weighted,
+        "precision": _precision_weighted,
+        "accuracy": accuracy_score,
+        "roc_auc": _roc_auc,
+        "kappa": cohen_kappa_score,
+        "log_loss": log_loss,
+    }
+
+    def resolve_metric(scorer):
+        return METRIC_FUNCTIONS[scorer]
+
+print("AutoML training script started", flush=True)
+
+_OUTPUT_PATH = os.environ.get("OUTPUT_PATH", _OUTPUT_PATH if "_OUTPUT_PATH" in globals() else "./output")
+os.makedirs(_OUTPUT_PATH, exist_ok=True)
+
+if "df" not in globals():
+    _DATASET_PATH = os.environ.get("DATASET_PATH", _DATASET_PATH if "_DATASET_PATH" in globals() else None)
+    if _DATASET_PATH is None:
+        raise RuntimeError("Dataset not pre-loaded and DATASET_PATH is not set")
+    df = pd.read_excel(_DATASET_PATH)
+
+print(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns", flush=True)
+
+TARGETS = ["sala", "especialidad", "prioridad"]
+GATING_TARGET = "sala"
+CV_FOLDS = 10
+N_TRIALS = 2
+OPTUNA_TIMEOUT = 60 
+RANDOM_STATE = 42
+
+BASE_FEATURES = ["descrip", "edad", "datosclini", "sospechadiag"]
+
+FEATURE_IG = {
+    "sala": {
+        "descrip": 0.4967,
+        "edad": 0.0442,
+        "datosclini": 0.4457,
+        "sospechadiag": 0.4808,
+    },
+    "especialidad": {
+        "descrip": 0.4967,
+        "edad": 0.0196,
+        "datosclini": 0.2348,
+        "sospechadiag": 0.2848,
+    },
+    "prioridad": {
+        "descrip": 0.4967,
+        "edad": 0.2111,
+        "datosclini": 0.3322,
+        "sospechadiag": 0.3558,
+    },
+}
+
+FEATURE_SELECTION_THRESHOLD = 0.05
+
+HYPERPARAMETER_SPACES = {
     "LGBMClassifier": {
         "learning_rate": [0.01, 0.05, 0.1],
         "max_depth": [3, 5, 7, -1],
@@ -101,694 +173,500 @@ BASE_HYPERPARAMETER_SPACES = {
     },
 }
 
-DEFAULT_PARAMS = {
-    "LGBMClassifier": {
-        "learning_rate": 0.1,
-        "max_depth": 5,
-        "n_estimators": 100,
-        "num_leaves": 31,
-        "subsample": 0.85,
-    },
-    "RandomForestClassifier": {
-        "max_depth": 10,
-        "max_features": "sqrt",
-        "min_samples_split": 2,
-        "n_estimators": 100,
-    },
-    "XGBClassifier": {
-        "colsample_bytree": 0.9,
-        "learning_rate": 0.1,
-        "max_depth": 5,
-        "n_estimators": 100,
-        "subsample": 0.9,
-    },
-}
-
-TARGETS_EVALUATION = {
-    "especialidad": {
-        "priority_metrics": ["F1-Score", "Recall", "Kappa"],
-    },
-    "prioridad": {
-        "priority_metrics": ["F1-Score", "Kappa"],
-    },
-    "sala": {
-        "priority_metrics": ["Kappa", "F1-Score"],
-    },
-}
-
-METRIC_TO_SCORER = {
-    "F1-Score": "f1",
-    "Recall": "recall",
-    "Kappa": "kappa",
-}
-
-METRIC_TO_SNAKE = {
-    "F1-Score": "f1_score",
-    "Recall": "recall",
-    "Kappa": "kappa",
-}
-
-CV_FOLDS = 2
-MAX_TRIALS = 5
-OPTUNA_TIMEOUT = 60
-RANDOM_STATE = 42
-
 MODEL_CLASSES = {
     "LGBMClassifier": LGBMClassifier,
     "RandomForestClassifier": RandomForestClassifier,
     "XGBClassifier": XGBClassifier,
 }
 
-_DEFAULT_METRIC_FUNCTIONS = {
-    "f1": f1_score,
-    "recall": recall_score,
-    "kappa": cohen_kappa_score,
+DEFAULT_PARAMS = {
+    "LGBMClassifier": {
+        "learning_rate": 0.05,
+        "max_depth": 5,
+        "n_estimators": 300,
+        "num_leaves": 63,
+        "subsample": 0.85,
+        "random_state": RANDOM_STATE,
+        "n_jobs": -1,
+        "verbose": -1,
+    },
+    "RandomForestClassifier": {
+        "max_depth": None,
+        "max_features": "sqrt",
+        "min_samples_split": 2,
+        "n_estimators": 300,
+        "random_state": RANDOM_STATE,
+        "n_jobs": -1,
+    },
+    "XGBClassifier": {
+        "colsample_bytree": 0.9,
+        "learning_rate": 0.05,
+        "max_depth": 5,
+        "n_estimators": 300,
+        "subsample": 0.9,
+        "random_state": RANDOM_STATE,
+        "n_jobs": -1,
+        "verbosity": 0,
+        "eval_metric": "logloss",
+    },
 }
 
-try:
-    resolve_metric
-except NameError:
-    def resolve_metric(scorer):
-        funcs = globals().get("METRIC_FUNCTIONS", _DEFAULT_METRIC_FUNCTIONS)
-        return funcs[scorer]
+TARGETS_EVALUATION = {
+    "sala": {"priority_metrics": ["F1-Score"], "optimization_scorer": "f1"},
+    "especialidad": {"priority_metrics": ["F1-Score"], "optimization_scorer": "f1"},
+    "prioridad": {"priority_metrics": ["F1-Score"], "optimization_scorer": "f1"},
+}
 
-def ensure_output_dir() -> None:
-    os.makedirs(_OUTPUT_PATH, exist_ok=True)
+METRIC_NAME_TO_SNAKE = {
+    "F1-Score": "f1_score",
+    "Precision": "precision",
+    "Accuracy": "accuracy",
+    "AUC-ROC": "roc_auc",
+    "Kappa": "kappa",
+    "Log-Loss": "log_loss",
+}
 
-def load_dataframe() -> pd.DataFrame:
-    if "df" in globals() and isinstance(globals()["df"], pd.DataFrame):
-        data = globals()["df"].copy()
-        print(f"Using pre-loaded dataframe with shape {data.shape}", flush=True)
-        return data
-    print(f"Loading dataset from {_DATASET_PATH}", flush=True)
-    data = pd.read_excel(_DATASET_PATH)
-    print(f"Loaded dataset with shape {data.shape}", flush=True)
-    return data
+METRIC_NAME_TO_SCORER = {
+    "F1-Score": "f1",
+    "Precision": "precision",
+    "Accuracy": "accuracy",
+    "AUC-ROC": "roc_auc",
+    "Kappa": "kappa",
+    "Log-Loss": "log_loss",
+}
 
-def prepare_features(data: pd.DataFrame) -> pd.DataFrame:
-    work = data.copy()
-    if "edad" in work.columns:
-        work["edad"] = pd.to_numeric(work["edad"], errors="coerce")
-    for col in FEATURE_COLS:
-        if col in work.columns and col != "edad":
-            work[col] = work[col].astype(str).str.strip()
-    return work
+def _str_col_2d(series):
+    return series.fillna("").astype(str).to_numpy().reshape(-1, 1)
 
-def get_numeric_and_categorical_cols(feature_cols: List[str], frame: pd.DataFrame) -> Tuple[List[str], List[str]]:
-    numeric_cols = [c for c in feature_cols if c in frame.columns and pd.api.types.is_numeric_dtype(frame[c])]
-    categorical_cols = [c for c in feature_cols if c in frame.columns and c not in numeric_cols]
-    return numeric_cols, categorical_cols
+def _numeric_col_2d(series):
+    return pd.to_numeric(series, errors="coerce").fillna(0).to_numpy().reshape(-1, 1)
 
-def build_preprocessor(feature_cols: List[str], frame: pd.DataFrame) -> ColumnTransformer:
-    numeric_cols, categorical_cols = get_numeric_and_categorical_cols(feature_cols, frame)
-    transformers = []
-    if categorical_cols:
-        transformers.append(
-            (
-                "cat",
-                Pipeline(
-                    [
-                        ("imputer", SimpleImputer(strategy="most_frequent")),
-                        (
-                            "encoder",
-                            OrdinalEncoder(
-                                handle_unknown="use_encoded_value",
-                                unknown_value=-1,
-                                dtype=np.float64,
-                            ),
-                        ),
-                    ]
-                ),
-                categorical_cols,
-            )
-        )
-    if numeric_cols:
-        transformers.append(("num", SimpleImputer(strategy="median"), numeric_cols))
-    return ColumnTransformer(transformers=transformers, remainder="drop")
+def _text_array(series):
+    return series.fillna("").astype(str).to_numpy()
 
-def encode_target(target_name: str, y_raw: pd.Series) -> Tuple[pd.Series, Optional[LabelEncoder]]:
-    if target_name == "prioridad":
-        mapped = y_raw.astype(str).str.strip().map(PRIORIDAD_MAPPING)
-        encoded = pd.Series(mapped.values, index=y_raw.index, dtype="float64")
-        return encoded, None
-    encoder = LabelEncoder()
-    encoded_values = encoder.fit_transform(y_raw.astype(str).str.strip())
-    encoded = pd.Series(encoded_values, index=y_raw.index)
-    return encoded, encoder
+class FeatureBuilder:
+    def __init__(self, feature_names):
+        self.feature_names = feature_names
+        self.descrip_encoder = None
+        self.datosclini_vectorizer = None
+        self.sospechadiag_vectorizer = None
 
-def suggest_params(trial: optuna.Trial, model_name: str) -> Dict[str, Any]:
-    space = BASE_HYPERPARAMETER_SPACES[model_name]
-    params: Dict[str, Any] = {}
-    for key, values in space.items():
-        params[key] = trial.suggest_categorical(key, values)
-    return params
+    def fit_transform(self, X_df):
+        parts = []
+        if "descrip" in self.feature_names:
+            descrip = _str_col_2d(X_df["descrip"])
+            self.descrip_encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=True)
+            parts.append(self.descrip_encoder.fit_transform(descrip))
+        if "edad" in self.feature_names:
+            edad = _numeric_col_2d(X_df["edad"])
+            parts.append(csr_matrix(edad))
+        if "datosclini" in self.feature_names:
+            texts = _text_array(X_df["datosclini"])
+            self.datosclini_vectorizer = TfidfVectorizer(max_features=2000, ngram_range=(1, 2), min_df=2)
+            parts.append(self.datosclini_vectorizer.fit_transform(texts))
+        if "sospechadiag" in self.feature_names:
+            texts = _text_array(X_df["sospechadiag"])
+            self.sospechadiag_vectorizer = TfidfVectorizer(max_features=2000, ngram_range=(1, 2), min_df=2)
+            parts.append(self.sospechadiag_vectorizer.fit_transform(texts))
+        if not parts:
+            raise ValueError("No features selected for matrix construction")
+        if len(parts) == 1:
+            return parts[0]
+        return hstack(parts).tocsr()
 
-def create_classifier(model_name: str, params: Dict[str, Any], n_classes: int) -> Any:
-    model_params = dict(params)
-    if model_name == "LGBMClassifier":
-        model_params.update(
-            {
-                "objective": "multiclass" if n_classes > 2 else "binary",
-                "num_class": n_classes if n_classes > 2 else 1,
-                "random_state": RANDOM_STATE,
-                "n_jobs": -1,
-                "verbosity": -1,
-            }
-        )
-    elif model_name == "XGBClassifier":
-        model_params.update(
-            {
-                "objective": "multi:softprob" if n_classes > 2 else "binary:logistic",
-                "num_class": n_classes if n_classes > 2 else None,
-                "random_state": RANDOM_STATE,
-                "n_jobs": -1,
-                "eval_metric": "mlogloss" if n_classes > 2 else "logloss",
-                "use_label_encoder": False,
-            }
-        )
-        if n_classes <= 2:
-            model_params.pop("num_class", None)
-    elif model_name == "RandomForestClassifier":
-        model_params.update({"random_state": RANDOM_STATE, "n_jobs": -1})
-    return MODEL_CLASSES[model_name](**model_params)
+    def transform(self, X_df):
+        parts = []
+        if "descrip" in self.feature_names:
+            descrip = _str_col_2d(X_df["descrip"])
+            parts.append(self.descrip_encoder.transform(descrip))
+        if "edad" in self.feature_names:
+            edad = _numeric_col_2d(X_df["edad"])
+            parts.append(csr_matrix(edad))
+        if "datosclini" in self.feature_names:
+            texts = _text_array(X_df["datosclini"])
+            parts.append(self.datosclini_vectorizer.transform(texts))
+        if "sospechadiag" in self.feature_names:
+            texts = _text_array(X_df["sospechadiag"])
+            parts.append(self.sospechadiag_vectorizer.transform(texts))
+        if len(parts) == 1:
+            return parts[0]
+        return hstack(parts).tocsr()
 
-def metric_kwargs(scorer: str, n_classes: int) -> Dict[str, Any]:
-    if scorer in ("f1", "precision", "recall"):
-        if n_classes > 2:
-            return {"average": "weighted"}
-        return {"average": "binary"}
-    return {}
-
-def score_predictions(
-    scorer: str,
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    n_classes: int,
-) -> float:
-    metric_fn = resolve_metric(scorer)
-    kwargs = metric_kwargs(scorer, n_classes)
-    return float(metric_fn(y_true, y_pred, **kwargs))
-
-def compute_all_priority_metrics(
-    priority_metrics: List[str],
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    n_classes: int,
-) -> Dict[str, float]:
-    metrics: Dict[str, float] = {}
-    for metric_name in priority_metrics:
-        scorer = METRIC_TO_SCORER[metric_name]
-        snake_name = METRIC_TO_SNAKE[metric_name]
-        value = score_predictions(scorer, y_true, y_pred, n_classes)
-        metrics[snake_name] = value
-    return metrics
-
-def cross_val_score_model(
-    model_name: str,
-    params: Dict[str, Any],
-    X: pd.DataFrame,
-    y: pd.Series,
-    preprocessor: ColumnTransformer,
-    scorer: str,
-    n_classes: int,
-) -> float:
-    skf = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
-    scores: List[float] = []
-    y_values = y.values
-    for train_idx, val_idx in skf.split(X, y_values):
-        X_train = X.iloc[train_idx]
-        X_val = X.iloc[val_idx]
-        y_train = y.iloc[train_idx]
-        y_val = y.iloc[val_idx]
-        fold_preprocessor = build_preprocessor(list(X.columns), X_train)
-        fold_preprocessor.fit(X_train)
-        X_train_t = fold_preprocessor.transform(X_train)
-        X_val_t = fold_preprocessor.transform(X_val)
-        model = create_classifier(model_name, params, n_classes)
-        model.fit(X_train_t, y_train.values)
-        y_pred = model.predict(X_val_t)
-        scores.append(score_predictions(scorer, y_val.values, y_pred, n_classes))
-    return float(np.mean(scores))
-
-def cross_val_score_gated_model(
-    model_name: str,
-    params: Dict[str, Any],
-    X: pd.DataFrame,
-    y: pd.Series,
-    gate_X: pd.DataFrame,
-    gate_y: pd.Series,
-    gate_model_name: str,
-    gate_params: Dict[str, Any],
-    gate_n_classes: int,
-    scorer: str,
-    n_classes: int,
-) -> float:
-    skf = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
-    scores: List[float] = []
-    y_values = y.values
-    for train_idx, val_idx in skf.split(X, y_values):
-        X_train = X.iloc[train_idx]
-        X_val = X.iloc[val_idx]
-        y_train = y.iloc[train_idx]
-        y_val = y.iloc[val_idx]
-        gate_train = gate_X.iloc[train_idx]
-        gate_val = gate_X.iloc[val_idx]
-        gate_y_train = gate_y.iloc[train_idx]
-
-        gate_preprocessor = build_preprocessor(list(gate_X.columns), gate_train)
-        gate_preprocessor.fit(gate_train)
-        gate_train_t = gate_preprocessor.transform(gate_train)
-        gate_val_t = gate_preprocessor.transform(gate_val)
-        gate_model = create_classifier(gate_model_name, gate_params, gate_n_classes)
-        gate_model.fit(gate_train_t, gate_y_train.values)
-        gate_pred_train = gate_model.predict(gate_train_t)
-        gate_pred_val = gate_model.predict(gate_val_t)
-
-        X_train_aug = X_train.copy()
-        X_val_aug = X_val.copy()
-        X_train_aug["especialidad_pred"] = gate_pred_train
-        X_val_aug["especialidad_pred"] = gate_pred_val
-
-        fold_preprocessor = build_preprocessor(list(X_train_aug.columns), X_train_aug)
-        fold_preprocessor.fit(X_train_aug)
-        X_train_t = fold_preprocessor.transform(X_train_aug)
-        X_val_t = fold_preprocessor.transform(X_val_aug)
-        model = create_classifier(model_name, params, n_classes)
-        model.fit(X_train_t, y_train.values)
-        y_pred = model.predict(X_val_t)
-        scores.append(score_predictions(scorer, y_val.values, y_pred, n_classes))
-    return float(np.mean(scores))
-
-def run_optuna_for_model(
-    model_name: str,
-    X: pd.DataFrame,
-    y: pd.Series,
-    scorer: str,
-    n_classes: int,
-    gate_bundle: Optional[Dict[str, Any]] = None,
-) -> Tuple[Dict[str, Any], float]:
-    def objective(trial: optuna.Trial) -> float:
-        params = suggest_params(trial, model_name)
-        if gate_bundle is None:
-            score = cross_val_score_model(
-                model_name,
-                params,
-                X,
-                y,
-                build_preprocessor(list(X.columns), X),
-                scorer,
-                n_classes,
-            )
-        else:
-            score = cross_val_score_gated_model(
-                model_name,
-                params,
-                X,
-                y,
-                gate_bundle["X"],
-                gate_bundle["y"],
-                gate_bundle["model_name"],
-                gate_bundle["params"],
-                gate_bundle["n_classes"],
-                scorer,
-                n_classes,
-            )
-        print(
-            f"  Optuna trial {trial.number} ({model_name}): score={score:.6f}",
-            flush=True,
-        )
-        return score
-
-    study = optuna.create_study(direction="maximize")
-    study.optimize(objective, n_trials=MAX_TRIALS, timeout=OPTUNA_TIMEOUT, catch=(Exception,))
-    has_complete = any(t.state.name == "COMPLETE" for t in study.trials)
-    if has_complete:
-        return study.best_params, float(study.best_value)
-    print(
-        f"Warning: no completed Optuna trials for {model_name}; using default hyperparameters",
-        flush=True,
-    )
-    default_score = (
-        cross_val_score_model(
-            model_name,
-            DEFAULT_PARAMS[model_name],
-            X,
-            y,
-            build_preprocessor(list(X.columns), X),
-            scorer,
-            n_classes,
-        )
-        if gate_bundle is None
-        else cross_val_score_gated_model(
-            model_name,
-            DEFAULT_PARAMS[model_name],
-            X,
-            y,
-            gate_bundle["X"],
-            gate_bundle["y"],
-            gate_bundle["model_name"],
-            gate_bundle["params"],
-            gate_bundle["n_classes"],
-            scorer,
-            n_classes,
-        )
-    )
-    return DEFAULT_PARAMS[model_name], float(default_score)
-
-def select_best_model(
-    target_name: str,
-    X: pd.DataFrame,
-    y: pd.Series,
-    gate_bundle: Optional[Dict[str, Any]] = None,
-) -> Tuple[str, Dict[str, Any], float, str]:
-    priority_metrics = TARGETS_EVALUATION[target_name]["priority_metrics"]
-    scorer = METRIC_TO_SCORER[priority_metrics[0]]
-    n_classes = int(y.nunique())
-    print(f"Starting model competition for target '{target_name}'", flush=True)
-    best_model_name = None
-    best_params: Dict[str, Any] = {}
-    best_score = float("-inf")
-    for model_name in MODEL_CLASSES:
-        print(f"Optimizing {model_name} for target '{target_name}'", flush=True)
-        params, score = run_optuna_for_model(
-            model_name,
-            X,
-            y,
-            scorer,
-            n_classes,
-            gate_bundle=gate_bundle,
-        )
-        print(
-            f"Best {model_name} for '{target_name}': score={score:.6f}, params={params}",
-            flush=True,
-        )
-        if score > best_score:
-            best_score = score
-            best_model_name = model_name
-            best_params = params
-    assert best_model_name is not None
-    return best_model_name, best_params, best_score, scorer
-
-def augment_with_gate_predictions(
-    X: pd.DataFrame,
-    gate_preprocessor: ColumnTransformer,
-    gate_model: Any,
-) -> pd.DataFrame:
-    X_aug = X.copy()
-    gate_features = gate_preprocessor.feature_names_in_
-    gate_input = X[list(gate_features)]
-    gate_transformed = gate_preprocessor.transform(gate_input)
-    X_aug["especialidad_pred"] = gate_model.predict(gate_transformed)
-    return X_aug
-
-def train_final_model(
-    model_name: str,
-    params: Dict[str, Any],
-    X: pd.DataFrame,
-    y: pd.Series,
-) -> Tuple[ColumnTransformer, Any]:
-    preprocessor = build_preprocessor(list(X.columns), X)
-    preprocessor.fit(X)
-    X_t = preprocessor.transform(X)
-    n_classes = int(y.nunique())
-    model = create_classifier(model_name, params, n_classes)
-    model.fit(X_t, y.values)
-    return preprocessor, model
-
-def evaluate_model(
-    preprocessor: ColumnTransformer,
-    model: Any,
-    X: pd.DataFrame,
-    y: pd.Series,
-    priority_metrics: List[str],
-) -> Dict[str, float]:
-    X_t = preprocessor.transform(X)
-    y_pred = model.predict(X_t)
-    n_classes = int(y.nunique())
-    return compute_all_priority_metrics(priority_metrics, y.values, y_pred, n_classes)
-
-def write_target_metrics(target_payload: Dict[str, Any]) -> None:
-    target_name = target_payload["target"]
-    target_path = os.path.join(_OUTPUT_PATH, f"{target_name}_metrics.json")
-    with open(target_path, "w", encoding="utf-8") as handle:
-        json.dump(target_payload, handle, indent=2)
-    print(f"Persisted metrics to {target_path}", flush=True)
-
-def update_aggregate_metrics(all_target_metrics: Dict[str, Dict[str, Any]]) -> None:
-    aggregate_path = os.path.join(_OUTPUT_PATH, "metrics.json")
-    payload = {"targets": all_target_metrics}
-    with open(aggregate_path, "w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2)
-    print(f"Updated aggregate metrics at {aggregate_path}", flush=True)
-
-def to_json_serializable(value: Any) -> Any:
+def to_json_serializable(value):
     if isinstance(value, (np.floating, np.integer)):
         return value.item()
+    if isinstance(value, np.ndarray):
+        return value.tolist()
     if isinstance(value, dict):
-        return {k: to_json_serializable(v) for k, v in value.items()}
-    if isinstance(value, list):
+        return {str(k): to_json_serializable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
         return [to_json_serializable(v) for v in value]
     return value
 
-def main() -> None:
-    print("AutoML GatedChain training script started", flush=True)
-    ensure_output_dir()
+def selected_features_for_target(target):
+    scores = FEATURE_IG[target]
+    return [feat for feat in BASE_FEATURES if scores.get(feat, 0.0) >= FEATURE_SELECTION_THRESHOLD]
 
-    data = load_dataframe()
-    data = prepare_features(data)
+def append_chain_features(X_matrix, chain_encoded_columns):
+    if not chain_encoded_columns:
+        return X_matrix
+    chain_matrix = csr_matrix(np.column_stack(chain_encoded_columns))
+    return hstack([X_matrix, chain_matrix]).tocsr()
+
+def suggest_hyperparameters(trial, model_name):
+    space = HYPERPARAMETER_SPACES[model_name]
+    params = {}
+    for key, choices in space.items():
+        param_name = f"{model_name}__{key}"
+        params[key] = trial.suggest_categorical(param_name, choices)
+    params["random_state"] = RANDOM_STATE
+    params["n_jobs"] = -1
+    if model_name == "LGBMClassifier":
+        params["verbose"] = -1
+    if model_name == "XGBClassifier":
+        params["verbosity"] = 0
+        params["eval_metric"] = "logloss"
+    return params
+
+def create_model(model_name, params):
+    return MODEL_CLASSES[model_name](**params)
+
+def compute_metric(scorer_key, y_true, y_pred, y_proba=None):
+    metric_fn = resolve_metric(scorer_key)
+    if scorer_key in ("roc_auc", "log_loss") and y_proba is not None:
+        try:
+            return float(metric_fn(y_true, y_proba))
+        except Exception:
+            return float(metric_fn(y_true, y_pred))
+    return float(metric_fn(y_true, y_pred))
+
+def compute_priority_metrics(target, y_true, y_pred, y_proba=None):
+    metrics = {}
+    for metric_name in TARGETS_EVALUATION[target]["priority_metrics"]:
+        scorer_key = METRIC_NAME_TO_SCORER[metric_name]
+        snake_name = METRIC_NAME_TO_SNAKE[metric_name]
+        try:
+            metrics[snake_name] = compute_metric(scorer_key, y_true, y_pred, y_proba)
+        except Exception as exc:
+            print(f"Warning: could not compute {metric_name} for {target}: {exc}", flush=True)
+            metrics[snake_name] = None
+    return metrics
+
+def fit_predict_fold(model, X_train, y_train, X_val):
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_val)
+    y_proba = None
+    if hasattr(model, "predict_proba"):
+        try:
+            y_proba = model.predict_proba(X_val)
+        except Exception:
+            y_proba = None
+    return y_pred, y_proba
+
+def build_chain_predictions(chain_specs, X_train_frame, X_val_frame, y_dict):
+    chain_train_cols = []
+    chain_val_cols = []
+    for chain_target, chain_model_name, chain_params, chain_le, chain_features in chain_specs:
+        builder = FeatureBuilder(chain_features)
+        chain_train_matrix = builder.fit_transform(X_train_frame)
+        chain_val_matrix = builder.transform(X_val_frame)
+        chain_y = y_dict[chain_target].loc[X_train_frame.index].values
+        chain_model = create_model(chain_model_name, chain_params.copy())
+        chain_model.fit(chain_train_matrix, chain_y)
+        chain_train_pred = chain_model.predict(chain_train_matrix)
+        chain_val_pred = chain_model.predict(chain_val_matrix)
+        chain_train_cols.append(chain_train_pred.reshape(-1, 1))
+        chain_val_cols.append(chain_val_pred.reshape(-1, 1))
+    return chain_train_cols, chain_val_cols
+
+def make_objective(
+    target,
+    X_frame,
+    y_series,
+    y_dict,
+    feature_names,
+    chain_specs,
+    optimization_scorer,
+    n_splits,
+):
+    def objective(trial):
+        model_name = trial.suggest_categorical(
+            "model_name", ["LGBMClassifier", "RandomForestClassifier", "XGBClassifier"]
+        )
+        params = suggest_hyperparameters(trial, model_name)
+        skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=RANDOM_STATE)
+        fold_scores = []
+
+        for fold_idx, (train_idx, val_idx) in enumerate(skf.split(X_frame, y_series.values)):
+            X_train_frame = X_frame.iloc[train_idx]
+            X_val_frame = X_frame.iloc[val_idx]
+            y_train = y_series.iloc[train_idx]
+            y_val = y_series.iloc[val_idx]
+
+            builder = FeatureBuilder(feature_names)
+            X_train_base = builder.fit_transform(X_train_frame)
+            X_val_base = builder.transform(X_val_frame)
+
+            chain_train_cols, chain_val_cols = build_chain_predictions(
+                chain_specs, X_train_frame, X_val_frame, y_dict
+            )
+
+            X_train = append_chain_features(X_train_base, chain_train_cols)
+            X_val = append_chain_features(X_val_base, chain_val_cols)
+
+            model = create_model(model_name, params.copy())
+            y_pred, _ = fit_predict_fold(model, X_train, y_train.values, X_val)
+            score = compute_metric(optimization_scorer, y_val.values, y_pred)
+            fold_scores.append(score)
+            trial.report(float(np.mean(fold_scores)), fold_idx)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+
+        mean_score = float(np.mean(fold_scores))
+        print(
+            f"Target={target} trial={trial.number} model={model_name} cv_score={mean_score:.6f}",
+            flush=True,
+        )
+        return mean_score
+
+    return objective
+
+def run_optuna_study(target, objective):
+    print(f"Starting Optuna optimization for target={target} with {N_TRIALS} trials", flush=True)
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=N_TRIALS, timeout=OPTUNA_TIMEOUT, catch=(Exception,))
+    has_complete = any(t.state.name == "COMPLETE" for t in study.trials)
+    if has_complete:
+        best_params = dict(study.best_params)
+        best_value = float(study.best_value)
+        model_name = best_params.pop("model_name")
+        prefixed_keys = [k for k in list(best_params.keys()) if k.startswith(f"{model_name}__")]
+        for pk in prefixed_keys:
+            best_params[pk.replace(f"{model_name}__", "", 1)] = best_params.pop(pk)
+        print(
+            f"Optuna complete for target={target}: best_model={model_name} best_cv_score={best_value:.6f}",
+            flush=True,
+        )
+        return model_name, best_params, best_value
     print(
-        f"Dataset ready: {data.shape[0]} rows, {data.shape[1]} columns",
+        f"Warning: no completed Optuna trials for target={target}; using default hyperparameters",
         flush=True,
     )
+    return "LGBMClassifier", DEFAULT_PARAMS["LGBMClassifier"].copy(), None
 
-    all_target_metrics: Dict[str, Dict[str, Any]] = {}
-    gate_artifacts: Dict[str, Any] = {}
+def save_aggregated_metrics(all_target_metrics):
+    aggregated_path = os.path.join(_OUTPUT_PATH, "metrics.json")
+    payload = {"targets": {entry["target"]: entry for entry in all_target_metrics}}
+    with open(aggregated_path, "w", encoding="utf-8") as f:
+        json.dump(to_json_serializable(payload), f, indent=2)
+    print(f"Aggregated metrics saved to {aggregated_path}", flush=True)
 
-    print(f"Phase 1: training gate target '{GATE_TARGET}'", flush=True)
-    X_gate = data[FEATURE_COLS].copy()
-    y_gate_raw = data[GATE_TARGET]
-    valid_gate = y_gate_raw.notna()
-    X_gate = X_gate.loc[valid_gate]
-    y_gate_raw = y_gate_raw.loc[valid_gate]
-    assert y_gate_raw.notna().all()
-    y_gate, gate_label_encoder = encode_target(GATE_TARGET, y_gate_raw)
-    valid_gate = y_gate.notna()
-    X_gate = X_gate.loc[valid_gate]
-    y_gate = y_gate.loc[valid_gate]
-    assert y_gate.notna().all()
+def train_target(
+    target,
+    X_full,
+    y_full,
+    y_dict,
+    feature_names,
+    chain_specs,
+    all_target_metrics,
+):
+    print(f"Training phase started for target={target}", flush=True)
+    optimization_scorer = TARGETS_EVALUATION[target]["optimization_scorer"]
 
-    gate_model_name, gate_params, gate_cv_score, gate_scorer = select_best_model(
-        GATE_TARGET,
-        X_gate,
-        y_gate,
+    objective = make_objective(
+        target=target,
+        X_frame=X_full,
+        y_series=y_full,
+        y_dict=y_dict,
+        feature_names=feature_names,
+        chain_specs=chain_specs,
+        optimization_scorer=optimization_scorer,
+        n_splits=CV_FOLDS,
     )
-    gate_preprocessor, gate_model = train_final_model(
-        gate_model_name,
-        gate_params,
-        X_gate,
-        y_gate,
-    )
-    gate_metrics = evaluate_model(
-        gate_preprocessor,
-        gate_model,
-        X_gate,
-        y_gate,
-        TARGETS_EVALUATION[GATE_TARGET]["priority_metrics"],
-    )
-    gate_model_file = f"{GATE_TARGET}_model.joblib"
-    gate_bundle = {
-        "target": GATE_TARGET,
-        "model_name": gate_model_name,
-        "params": gate_params,
-        "preprocessor": gate_preprocessor,
-        "model": gate_model,
-        "label_encoder": gate_label_encoder,
-        "feature_cols": list(X_gate.columns),
-    }
-    joblib.dump(gate_bundle, os.path.join(_OUTPUT_PATH, gate_model_file))
-    print(f"Persisted gate model to {gate_model_file}", flush=True)
 
-    gate_payload = to_json_serializable(
-        {
-            "target": GATE_TARGET,
-            "model_file": gate_model_file,
-            "best_params": gate_params,
-            "optimization_metric": gate_scorer,
-            "cv_score": gate_cv_score,
-            "priority_metrics": TARGETS_EVALUATION[GATE_TARGET]["priority_metrics"],
-            "metrics": gate_metrics,
-        }
-    )
-    write_target_metrics(gate_payload)
-    all_target_metrics[GATE_TARGET] = gate_payload
-    update_aggregate_metrics(all_target_metrics)
+    model_name, best_params, cv_score = run_optuna_study(target, objective)
 
-    gate_artifacts = {
-        "X": X_gate,
-        "y": y_gate,
-        "model_name": gate_model_name,
-        "params": gate_params,
-        "n_classes": int(y_gate.nunique()),
-        "preprocessor": gate_preprocessor,
-        "model": gate_model,
-    }
+    if cv_score is None:
+        cv_score = 0.0
 
-    for target_name in DEPENDENT_TARGETS:
-        print(f"Phase 2: training dependent target '{target_name}'", flush=True)
-        X_base = data[FEATURE_COLS].copy()
-        y_raw = data[target_name]
-        valid = y_raw.notna()
-        X_base = X_base.loc[valid]
-        y_raw = y_raw.loc[valid]
-        assert y_raw.notna().all()
-        y_target, label_encoder = encode_target(target_name, y_raw)
-        valid = y_target.notna()
-        X_base = X_base.loc[valid]
-        y_target = y_target.loc[valid]
-        assert y_target.notna().all()
+    builder = FeatureBuilder(feature_names)
+    X_base = builder.fit_transform(X_full)
 
-        gate_y_aligned, _ = encode_target(GATE_TARGET, data.loc[X_base.index, GATE_TARGET])
-        valid_aligned = gate_y_aligned.notna()
-        X_base = X_base.loc[valid_aligned]
-        y_target = y_target.loc[valid_aligned]
-        gate_y_aligned = gate_y_aligned.loc[valid_aligned]
-        assert y_target.notna().all()
-
-        gate_bundle_cv = {
-            "X": X_base.copy(),
-            "y": gate_y_aligned,
-            "model_name": gate_model_name,
-            "params": gate_params,
-            "n_classes": gate_artifacts["n_classes"],
-        }
-
-        model_name, best_params, cv_score, scorer = select_best_model(
-            target_name,
-            X_base,
-            y_target,
-            gate_bundle=gate_bundle_cv,
-        )
-        X_aug = augment_with_gate_predictions(
-            X_base,
-            gate_preprocessor,
-            gate_model,
-        )
-        preprocessor, model = train_final_model(model_name, best_params, X_aug, y_target)
-        metrics = evaluate_model(
-            preprocessor,
-            model,
-            X_aug,
-            y_target,
-            TARGETS_EVALUATION[target_name]["priority_metrics"],
-        )
-        model_file = f"{target_name}_model.joblib"
-        artifact = {
-            "target": target_name,
-            "model_name": model_name,
-            "params": best_params,
-            "preprocessor": preprocessor,
-            "model": model,
-            "label_encoder": label_encoder,
-            "feature_cols": list(X_aug.columns),
-            "gate_target": GATE_TARGET,
-            "gate_model_file": gate_model_file,
-        }
-        joblib.dump(artifact, os.path.join(_OUTPUT_PATH, model_file))
-        print(f"Persisted model to {model_file}", flush=True)
-
-        target_payload = to_json_serializable(
+    chain_encoded_columns = []
+    chain_artifacts = []
+    for chain_target, chain_model_name, chain_params, chain_le, chain_features in chain_specs:
+        chain_builder = FeatureBuilder(chain_features)
+        chain_matrix = chain_builder.fit_transform(X_full)
+        chain_y = y_dict[chain_target].values
+        chain_model = create_model(chain_model_name, chain_params.copy())
+        chain_model.fit(chain_matrix, chain_y)
+        chain_pred = chain_model.predict(chain_matrix)
+        chain_encoded_columns.append(chain_pred.reshape(-1, 1))
+        chain_artifacts.append(
             {
-                "target": target_name,
-                "model_file": model_file,
-                "best_params": best_params,
-                "optimization_metric": scorer,
-                "cv_score": cv_score,
-                "priority_metrics": TARGETS_EVALUATION[target_name]["priority_metrics"],
-                "metrics": metrics,
+                "target": chain_target,
+                "model_name": chain_model_name,
+                "params": chain_params,
+                "label_encoder": chain_le,
+                "features": chain_features,
+                "model": chain_model,
+                "feature_builder": chain_builder,
             }
         )
-        write_target_metrics(target_payload)
-        all_target_metrics[target_name] = target_payload
-        update_aggregate_metrics(all_target_metrics)
 
-    print("AutoML GatedChain training completed successfully", flush=True)
+    X_final = append_chain_features(X_base, chain_encoded_columns)
+    final_model = create_model(model_name, best_params.copy())
+    final_model.fit(X_final, y_full.values)
 
-if __name__ == "__main__":
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        main()
-# --- EXECUTION OUTPUT ---
-Dataset loaded: 10240 rows, 7 columns
-AutoML GatedChain training script started
-Using pre-loaded dataframe with shape (10240, 7)
-Dataset ready: 10240 rows, 7 columns
-Phase 1: training gate target 'especialidad'
-Starting model competition for target 'especialidad'
-Optimizing LGBMClassifier for target 'especialidad'
-  Optuna trial 0 (LGBMClassifier): score=1.000000
-  Optuna trial 1 (LGBMClassifier): score=1.000000
-  Optuna trial 2 (LGBMClassifier): score=1.000000
-  Optuna trial 3 (LGBMClassifier): score=1.000000
-  Optuna trial 4 (LGBMClassifier): score=1.000000
-Best LGBMClassifier for 'especialidad': score=1.000000, params={'learning_rate': 0.1, 'max_depth': 7, 'n_estimators': 300, 'num_leaves': 31, 'subsample': 0.85}
-Optimizing RandomForestClassifier for target 'especialidad'
-  Optuna trial 0 (RandomForestClassifier): score=1.000000
-  Optuna trial 1 (RandomForestClassifier): score=1.000000
-  Optuna trial 2 (RandomForestClassifier): score=1.000000
-  Optuna trial 3 (RandomForestClassifier): score=1.000000
-  Optuna trial 4 (RandomForestClassifier): score=1.000000
-Best RandomForestClassifier for 'especialidad': score=1.000000, params={'max_depth': 20, 'max_features': 'log2', 'min_samples_split': 2, 'n_estimators': 300}
-Optimizing XGBClassifier for target 'especialidad'
-  Optuna trial 0 (XGBClassifier): score=1.000000
-  Optuna trial 1 (XGBClassifier): score=1.000000
-  Optuna trial 2 (XGBClassifier): score=1.000000
-  Optuna trial 3 (XGBClassifier): score=1.000000
-  Optuna trial 4 (XGBClassifier): score=1.000000
-Best XGBClassifier for 'especialidad': score=1.000000, params={'colsample_bytree': 0.9, 'learning_rate': 0.01, 'max_depth': 7, 'n_estimators': 500, 'subsample': 0.9}
-Persisted gate model to especialidad_model.joblib
-Persisted metrics to /app/model/especialidad_metrics.json
-Updated aggregate metrics at /app/model/metrics.json
-Phase 2: training dependent target 'prioridad'
-Starting model competition for target 'prioridad'
-Optimizing LGBMClassifier for target 'prioridad'
-  Optuna trial 0 (LGBMClassifier): score=0.571823
-  Optuna trial 1 (LGBMClassifier): score=0.564875
-Best LGBMClassifier for 'prioridad': score=0.571823, params={'learning_rate': 0.05, 'max_depth': 5, 'n_estimators': 500, 'num_leaves': 63, 'subsample': 0.85}
-Optimizing RandomForestClassifier for target 'prioridad'
-  Optuna trial 0 (RandomForestClassifier): score=0.537629
-  Optuna trial 1 (RandomForestClassifier): score=0.592046
-  Optuna trial 2 (RandomForestClassifier): score=0.549170
-  Optuna trial 3 (RandomForestClassifier): score=0.545948
-  Optuna trial 4 (RandomForestClassifier): score=0.537629
-Best RandomForestClassifier for 'prioridad': score=0.592046, params={'max_depth': 5, 'max_features': 'sqrt', 'min_samples_split': 10, 'n_estimators': 500}
-Optimizing XGBClassifier for target 'prioridad'
-  Optuna trial 0 (XGBClassifier): score=0.573688
-Best XGBClassifier for 'prioridad': score=0.573688, params={'colsample_bytree': 0.9, 'learning_rate': 0.01, 'max_depth': 7, 'n_estimators': 500, 'subsample': 1.0}
-Persisted model to prioridad_model.joblib
-Persisted metrics to /app/model/prioridad_metrics.json
-Updated aggregate metrics at /app/model/metrics.json
-Phase 2: training dependent target 'sala'
-Starting model competition for target 'sala'
-Optimizing LGBMClassifier for target 'sala'
-  Optuna trial 0 (LGBMClassifier): score=0.304073
-  Optuna trial 1 (LGBMClassifier): score=0.304667
-  Optuna trial 2 (LGBMClassifier): score=0.310186
-Best LGBMClassifier for 'sala': score=0.310186, params={'learning_rate': 0.1, 'max_depth': 5, 'n_estimators': 100, 'num_leaves': 63, 'subsample': 1.0}
-Optimizing RandomForestClassifier for target 'sala'
-  Optuna trial 0 (RandomForestClassifier): score=0.264802
-  Optuna trial 1 (RandomForestClassifier): score=0.238324
-  Optuna trial 2 (RandomForestClassifier): score=0.252621
-  Optuna trial 3 (RandomForestClassifier): score=0.280771
-  Optuna trial 4 (RandomForestClassifier): score=0.224911
-Best RandomForestClassifier for 'sala': score=0.280771, params={'max_depth': 10, 'max_features': 'log2', 'min_samples_split': 10, 'n_estimators': 100}
-Optimizing XGBClassifier for target 'sala'
-  Optuna trial 0 (XGBClassifier): score=0.283111
-  Optuna trial 1 (XGBClassifier): score=0.290718
-  Optuna trial 2 (XGBClassifier): score=0.318075
-  Optuna trial 3 (XGBClassifier): score=0.297762
-  Optuna trial 4 (XGBClassifier): score=0.314668
-Best XGBClassifier for 'sala': score=0.318075, params={'colsample_bytree': 1.0, 'learning_rate': 0.05, 'max_depth': 5, 'n_estimators': 500, 'subsample': 0.9}
-Persisted model to sala_model.joblib
-Persisted metrics to /app/model/sala_metrics.json
-Updated aggregate metrics at /app/model/metrics.json
-AutoML GatedChain training completed successfully
+    skf = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
+    oof_pred = pd.Series(index=y_full.index, dtype=float)
+    oof_proba = None
+    for train_idx, val_idx in skf.split(X_final, y_full.values):
+        fold_builder = FeatureBuilder(feature_names)
+        X_train_base = fold_builder.fit_transform(X_full.iloc[train_idx])
+        X_val_base = fold_builder.transform(X_full.iloc[val_idx])
+        chain_train_cols, chain_val_cols = build_chain_predictions(
+            chain_specs, X_full.iloc[train_idx], X_full.iloc[val_idx], y_dict
+        )
+        X_train = append_chain_features(X_train_base, chain_train_cols)
+        X_val = append_chain_features(X_val_base, chain_val_cols)
+        fold_model = create_model(model_name, best_params.copy())
+        y_pred, y_proba = fit_predict_fold(
+            fold_model, X_train, y_full.iloc[train_idx].values, X_val
+        )
+        oof_pred.iloc[val_idx] = y_pred
+        if y_proba is not None:
+            if oof_proba is None:
+                oof_proba = np.zeros((len(y_full), y_proba.shape[1]))
+            oof_proba[val_idx] = y_proba
+
+    metrics = compute_priority_metrics(
+        target, y_full.values, oof_pred.values.astype(int), oof_proba
+    )
+
+    model_file = f"{target}_model.joblib"
+    model_path = os.path.join(_OUTPUT_PATH, model_file)
+    artifact = {
+        "target": target,
+        "model_name": model_name,
+        "model": final_model,
+        "best_params": best_params,
+        "feature_names": feature_names,
+        "feature_builder": builder,
+        "chain_artifacts": chain_artifacts,
+        "label_encoder": label_encoders[target],
+    }
+    joblib.dump(artifact, model_path)
+    print(f"Model persisted for target={target} at {model_path}", flush=True)
+
+    target_metrics = {
+        "target": target,
+        "model_file": model_file,
+        "best_params": to_json_serializable({"model_name": model_name, **best_params}),
+        "optimization_metric": optimization_scorer,
+        "cv_score": float(cv_score),
+        "priority_metrics": TARGETS_EVALUATION[target]["priority_metrics"],
+        "metrics": to_json_serializable(metrics),
+    }
+
+    target_metrics_path = os.path.join(_OUTPUT_PATH, f"{target}_metrics.json")
+    with open(target_metrics_path, "w", encoding="utf-8") as f:
+        json.dump(to_json_serializable(target_metrics), f, indent=2)
+    print(f"Metrics persisted for target={target} at {target_metrics_path}", flush=True)
+
+    all_target_metrics.append(target_metrics)
+    save_aggregated_metrics(all_target_metrics)
+
+    return model_name, best_params, final_model
+
+print("Preparing targets and label encoders", flush=True)
+
+X_all = df[BASE_FEATURES].copy()
+label_encoders = {}
+y_encoded = {}
+
+for target in TARGETS:
+    y_raw = df[target]
+    valid = y_raw.notna()
+    le = LabelEncoder()
+    y_fit = y_raw.loc[valid].astype(str)
+    y_encoded[target] = pd.Series(le.fit_transform(y_fit.to_numpy()), index=y_fit.index)
+    label_encoders[target] = le
+    assert y_encoded[target].notna().all()
+
+valid_rows = df[TARGETS].notna().all(axis=1)
+X_work = X_all.loc[valid_rows].copy()
+for target in TARGETS:
+    y_encoded[target] = y_encoded[target].loc[valid_rows]
+    assert y_encoded[target].notna().all()
+
+print(f"Working set after target filtering: {X_work.shape[0]} rows", flush=True)
+
+all_target_metrics = []
+trained_models = {}
+
+sala_features = selected_features_for_target("sala")
+print(f"GatedChain phase: training gating target={GATING_TARGET}", flush=True)
+sala_model_name, sala_params, sala_model = train_target(
+    target="sala",
+    X_full=X_work,
+    y_full=y_encoded["sala"],
+    y_dict=y_encoded,
+    feature_names=sala_features,
+    chain_specs=[],
+    all_target_metrics=all_target_metrics,
+)
+trained_models["sala"] = (sala_model_name, sala_params)
+
+especialidad_features = selected_features_for_target("especialidad")
+print("GatedChain phase: training target=especialidad with sala chain dependency", flush=True)
+esp_chain = [
+    (
+        "sala",
+        trained_models["sala"][0],
+        trained_models["sala"][1],
+        label_encoders["sala"],
+        sala_features,
+    )
+]
+esp_model_name, esp_params, esp_model = train_target(
+    target="especialidad",
+    X_full=X_work,
+    y_full=y_encoded["especialidad"],
+    y_dict=y_encoded,
+    feature_names=especialidad_features,
+    chain_specs=esp_chain,
+    all_target_metrics=all_target_metrics,
+)
+trained_models["especialidad"] = (esp_model_name, esp_params)
+
+prioridad_features = selected_features_for_target("prioridad")
+print("GatedChain phase: training dependent target=prioridad", flush=True)
+prior_chain = [
+    (
+        "sala",
+        trained_models["sala"][0],
+        trained_models["sala"][1],
+        label_encoders["sala"],
+        sala_features,
+    ),
+    (
+        "especialidad",
+        trained_models["especialidad"][0],
+        trained_models["especialidad"][1],
+        label_encoders["especialidad"],
+        especialidad_features,
+    ),
+]
+prior_model_name, prior_params, prior_model = train_target(
+    target="prioridad",
+    X_full=X_work,
+    y_full=y_encoded["prioridad"],
+    y_dict=y_encoded,
+    feature_names=prioridad_features,
+    chain_specs=prior_chain,
+    all_target_metrics=all_target_metrics,
+)
+trained_models["prioridad"] = (prior_model_name, prior_params)
+
+print("AutoML training script completed successfully", flush=True)
