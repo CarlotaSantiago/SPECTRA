@@ -7,16 +7,41 @@ import ViewData from './pages/ViewDataPage';
 function App() {
   return (
     <Router>
-      <header style={{ padding: '10px', borderBottom: '1px solid #536765', fontSize: '24px', fontWeight: 'bold', color: '#536765', textAlign: 'center' }}>
-        SPECTRA
-      </header>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        height: '100vh', 
+        overflow: 'hidden',
+        backgroundColor: '#121212' // Evita destellos blancos al cargar
+      }}>
+        
+        <header style={{ 
+          padding: '10px', 
+          borderBottom: '1px solid #536765', 
+          fontSize: '24px', 
+          fontWeight: 'bold', 
+          color: '#536765', 
+          textAlign: 'center',
+          flexShrink: 0 
+        }}>
+          SPECTRA
+        </header>
 
-      <Routes>
-        <Route path="/" element={<Upload />} />
-        <Route path='/data-config' element={<DataConfig />} />
-        <Route path='/results' element={<Results />} />
-        <Route path='/view-results' element={<ViewData />} />
-      </Routes>
+        <main style={{ 
+          flexGrow: 1, 
+          overflow: 'hidden', 
+          display: 'flex', 
+          flexDirection: 'column' 
+        }}>
+          <Routes>
+            <Route path="/" element={<Upload />} />
+            <Route path='/data-config' element={<DataConfig />} />
+            <Route path='/results' element={<Results />} />
+            <Route path='/view-results' element={<ViewData />} />
+          </Routes>
+        </main>
+
+      </div>
     </Router>
   );
 }

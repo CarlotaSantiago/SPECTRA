@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Database, ArrowRight } from "lucide-react";
 import { useAnalysis } from "../feature/hooks/useAnalysis";
 import { useDatasetStore } from "../store/useDatasetStore";
@@ -25,7 +25,7 @@ const ActionButton = ({ loading, onClick, label }: { loading: boolean, onClick: 
     {label} <ArrowRight size={20} />
   </button>
 );
-
+  
 // --- PÁGINA PRINCIPAL ---
 const DataConfigPage = () => {
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ const DataConfigPage = () => {
 
   // 1. Estados
   const [selectedModel, setSelectedModel] = useState(""); // <-- 2. Estado del modelo
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(["idbuzon", "descrip", "edad", "servpeti", "especialidad", "sala", "prioridad", "datosclini", "sospechadiag"]);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => data?.columnas.slice(0, 5) || []); // Inicializamos con las primeras 5 columnas
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [roles, setRoles] = useState<Record<string, 'feature' | 'target' | 'none'>>({});
@@ -155,6 +155,9 @@ const DataConfigPage = () => {
         onClick={handleNextStep} 
         label={loading ? "Procesando..." : "Confirmar Selección y Avanzar"} 
       />
+      <footer style={{ marginTop: "10px", fontSize: "12px", color: "#888", textAlign: "center" }}>
+          Selección de roles: Dossier Inicial (Features/Targets)
+        </footer>
     </div>
   );
 };
@@ -172,14 +175,20 @@ const selectStyle: React.CSSProperties = {
 };
 
 const containerStyle: React.CSSProperties = {
-  display: "flex", flexDirection: "column", height: "100vh",
-  padding: "20px", backgroundColor: "#121212", color: "white",
-  boxSizing: "border-box", overflow: "hidden"
+  display: "flex", 
+  flexDirection: "column", 
+  height: "100%",
+  width: "100%",
+  padding: "20px", 
+  backgroundColor: "#121212", 
+  color: "white",
+  boxSizing: "border-box", 
+  overflow: "hidden"
 };
 
 const topControlsRow: React.CSSProperties = {
   display: "flex", justifyContent: "space-between",
-  alignItems: "center", marginBottom: "20px"
+  alignItems: "center", marginBottom: "20px", flexShrink: 0
 };
 
 const titleStyle: React.CSSProperties = {
@@ -190,14 +199,14 @@ const titleStyle: React.CSSProperties = {
 const backBtnStyle: React.CSSProperties = {
   background: "none", border: "none", color: "#648f8c",
   display: "flex", alignItems: "center", gap: "5px",
-  cursor: "pointer", marginBottom: "15px", width: "fit-content"
+  cursor: "pointer", marginBottom: "15px", width: "fit-content", flexShrink: 0
 };
 
 const mainBtnStyle: React.CSSProperties = {
-  marginTop: "15px", padding: "14px", borderRadius: "10px",
+  marginTop: "10px", padding: " 10px 14px", borderRadius: "10px",
   border: "none", backgroundColor: "#648f8c", color: "white",
   fontSize: "15px", fontWeight: "bold", cursor: "pointer",
-  display: "flex", justifyContent: "center", alignItems: "center", gap: "10px"
+  display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", flexShrink: 0
 };
 
 const badgeStyle: React.CSSProperties = {

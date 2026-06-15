@@ -336,7 +336,7 @@ const paginationBarStyle: React.CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  padding: "15px 10px",
+  padding: "5px",
   backgroundColor: "#121212",
   borderTop: "1px solid #252525"
 };
@@ -361,6 +361,7 @@ const tableContainerStyle: React.CSSProperties = {
   borderRadius: "8px 8px 0 0", // Redondeado solo arriba
   border: "1px solid #252525",
   backgroundColor: "#1a1a1a",
+  position: "relative",
 };
 
 const filterBtnStyle = (active: boolean): React.CSSProperties => ({
