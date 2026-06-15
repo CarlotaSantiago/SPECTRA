@@ -15,7 +15,11 @@ backend/.env.local
 backend/.env.development.local
 
 #QUitar data
-backend/uploads/*
-backend/model/*
-backend/payload.json
+backend/uploads/
+backend/model/
+backend/payload_vuelta_1.json
 backend/toon_dossier.txt
+backend/toon_s2_prompt.txt
+backend/toon_dossier.json
+backend/temp_execution_script.py
+

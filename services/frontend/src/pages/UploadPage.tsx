@@ -13,7 +13,7 @@ const UploadPage = () => {
   
   const setData = useDatasetStore((s) => s.setData)
 
-  const { files, addFiles, removeFile, togglePreprocess, upload } =
+  const { files, addFiles, removeFile, upload } =
     useUpload(async (data) => {
       if (data.status === "ok") {
         setData(data);
@@ -87,7 +87,6 @@ const UploadPage = () => {
         <FileList
           files={files}
           remove={removeFile}
-          toggle={togglePreprocess}
         />
 
         <button

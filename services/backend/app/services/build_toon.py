@@ -11,7 +11,7 @@ def build_toon_s2(metadata, type_correlation, max_dependency, dependency, target
     toon_str += f"target_correlation:   '{{type: {type_correlation}, dependency: {dependency}, p_value: {max_dependency} }}'\n\n"
 
     toon_str += "# USER_INTERFACE_CONSTRAINTS\n"
-    toon_str += f"cv_strategy: '{{'strategy': {metadata['user_constraints']['cv_strategy']['type']}, 'folds': {metadata['user_constraints']['cv_strategy']['folds']}}}'\n"
+    toon_str += f"cv_strategy: '{{'strategy': {metadata['user_constraints']['cv_strategy']['type']}, 'folds': 1}}'\n"
     toon_str += f"feature_selection_threshold: {metadata['user_constraints']['feature_selection_threshold']}\n"
     toon_str += f"allow_ensembles: {metadata['user_constraints']['allow_ensembles']}\n"
     toon_str += f"optimization_priority: {metadata['user_constraints']['optimization_priority']}\n\n"
@@ -31,8 +31,8 @@ def build_toon_s2(metadata, type_correlation, max_dependency, dependency, target
 
     toon_str += "#  MODEL_TUNING_STRATEGY\n"
     toon_str += f"search_type: {metadata['user_constraints']['tuning_strategy']['search_type']}\n"
-    toon_str += f"max_trials: {metadata['user_constraints']['tuning_strategy']['max_trials']}\n"
-    toon_str += f"timeout: {metadata['user_constraints']['tuning_strategy']['timeout']}\n"
+    toon_str += f"max_trials: 2\n"
+    toon_str += f"timeout: 60\n"
 
     with open("toon_s2_prompt.txt", "w", encoding="utf-8") as f:
         f.write(toon_str)

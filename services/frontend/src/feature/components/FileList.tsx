@@ -4,11 +4,9 @@ import type { FileWithSettings } from "../../types";
 export const FileList = ({
   files,
   remove,
-  toggle,
 }: {
   files: FileWithSettings[];
   remove: (i: number) => void;
-  toggle: (i: number) => void;
 }) => {
   if (files.length === 0) return null;
 
@@ -23,7 +21,6 @@ export const FileList = ({
           key={i}
           item={f}
           onRemove={() => remove(i)}
-          onToggle={() => toggle(i)}
         />
       ))}
     </div>
