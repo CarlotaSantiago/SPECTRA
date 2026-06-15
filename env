@@ -1,0 +1,57 @@
+APP_NAME=Training Service
+APP_VERSION=0.1.0
+HOST=0.0.0.0
+PORT=8001
+DEBUG=false
+LOG_LEVEL=INFO
+
+# Prompt template (absolute path or relative to working directory)
+PROMPT_TEMPLATE_PATH=src/training_service/infrastructure/prompts/orchestration_prompt.j2
+FIX_PROMPT_TEMPLATE_PATH=src/training_service/infrastructure/prompts/fix_script_prompt.j2
+FILL_PROMPT_TEMPLATE_PATH=src/training_service/infrastructure/prompts/fill_script_prompt.j2
+SCRIPT_TEMPLATES_DIR=src/training_service/infrastructure/script_templates
+# Script generation: template (skeleton + LLM fill) or legacy (full LLM codegen)
+SCRIPT_GENERATION_MODE=template
+
+# LLM provider: ollama | mistral | grok | openai
+LLM_PROVIDER=mistral
+LLM_DEFAULT_MODEL=codestral-latest
+LLM_TIMEOUT_SECONDS=600
+
+LLM_SCRIPT_MAX_ATTEMPTS=12
+
+# Ollama (local or remote server)
+OLLAMA_BASE_URL=http://localhost:11434
+
+# Mistral API (OpenAI-compatible)
+MISTRAL_API_KEY=32zkHec1XaJKnWMDmAVJhBkCTXZ2jlqd
+MISTRAL_BASE_URL=https://api.mistral.ai/v1
+# Groq API (OpenAI-compatible)
+GROQ_API_KEY=
+GROQ_BASE_URL=https://api.groq.com/openai/v1
+
+# OpenAI or other OpenAI-compatible APIs
+OPENAI_API_KEY=
+OPENAI_BASE_URL=https://api.openai.com/v1
+
+OPENROUTER_API_KEY=
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+
+CURSOR_API_KEY=crsr_d406c6b24ddc5a51d95473c3aaabe8d9f0289035a87f3c5476bd2f322bd704e4
+CURSOR_BASE_URL=https://api.cursor.com/v1
+CURSOR_POLL_INTERVAL_SECONDS=6
+
+# Sandbox execution
+SANDBOX_DOCKER_IMAGE=training-service-sandbox:latest
+SANDBOX_DOCKER_FALLBACK_IMAGE=python:3.11-slim
+SANDBOX_SCRIPT_PATH=/app/model/orchestation_script.py
+SANDBOX_SUBPROCESS_TIMEOUT=900
+SANDBOX_DOCKER_TIMEOUT=960
+SANDBOX_ALLOWED_BASE_DIRS=./uploads,./model,.
+SANDBOX_PYTHON_EXECUTABLE=python3
+SANDBOX_STREAM_TO_LOGS=true
+
+# E2E tests with real LLM (local only — never in CI)
+RUN_E2E=1
+E2E_REMOTE_OLLAMA_MODEL=ia.drordas.info/qwen2.5:14b-instruct-q4_K_M
+E2E_MISTRAL_MODEL=codestral-latest

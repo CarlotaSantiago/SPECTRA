@@ -6,7 +6,7 @@ services:
     ports:
       - "8001:8001"  # El puerto que se mapea debe coincidir con el puerto dónde corre el microservicio, se configura en el .env del microservicio
     env_file:
-      # - .../spectra-training-service/.env  # El .env tiene que ser el enviroment del microservicio, no el del backend
+      - env  # El .env tiene que ser el enviroment del microservicio, no el del backend
     environment:
       OLLAMA_BASE_URL: http://host.docker.internal:11434
       SANDBOX_ALLOWED_BASE_DIRS: /app/uploads,/app/model,/app
