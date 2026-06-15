@@ -4,22 +4,22 @@ import { uploadFiles } from "../../adapter/uploadAdapter";
 import type { FileWithSettings } from "../../types";
 
 export const useUpload = (onSuccess: (data: any) => void) => {
-  const [files, setFiles] = useState<FileWithSettings[]>([]);
+  const [file, setFile] = useState<FileWithSettings[]>([]);
 
-  const addFiles = (newFiles: File[]) => {
+  const addFile = (newFiles: File[]) => {
     const formatted: FileWithSettings[] = [{
       file: newFiles[0],
       preprocess: false,
     }];
-    setFiles(formatted);
+    setFile(formatted);
   };
 
   const removeFile = (_index: number) => {
-    setFiles([]);
+    setFile([]);
   };
 
   const togglePreprocess = (index: number) => {
-    setFiles((prev) =>
+    setFile((prev) =>
       prev.map((f, i) =>
         i === index ? { ...f, preprocess: !f.preprocess } : f
       )
@@ -27,9 +27,9 @@ export const useUpload = (onSuccess: (data: any) => void) => {
   };
 
   const upload = async () => {
-    if (!files.length) return;
+    if (!file.length) return;
     try {
-      const data = await uploadFiles(files);
+      const data = await uploadFiles(file);
       if (data) {
         onSuccess(data);
       } else {
@@ -42,5 +42,5 @@ export const useUpload = (onSuccess: (data: any) => void) => {
     }
   };
 
-  return { files, addFiles, removeFile, togglePreprocess, upload };
+  return { file, addFile, removeFile, togglePreprocess, upload };
 };

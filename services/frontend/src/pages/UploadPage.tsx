@@ -2,30 +2,28 @@ import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useUpload } from "../feature/hooks/useUpload";
 import { Dropzone } from "../feature/components/Dropzone";
-import { FileList } from "../feature/components/FileList";
-import { LoadingOverlay } from "../feature/components/LoadingOverlay"; // Importamos el nuevo componente
+import { FileItem } from "../feature/components/FileItem";
+import { LoadingOverlay } from "../feature/components/LoadingOverlay"; 
 import { useDatasetStore } from "../store/useDatasetStore";
 
 const UploadPage = () => {
   const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
 
-  
-  const setData = useDatasetStore((s) => s.setData)
+  const setData = useDatasetStore((s) => s.setData);
 
-  const { files, addFiles, removeFile, upload } =
-    useUpload(async (data) => {
-      if (data.status === "ok") {
-        setData(data);
-        navigate("/data-config");
-      }else{
-        console.error("La respuesta del servidor no es válida:", data);
-      }
-      setIsUploading(false);
-    });
+  const { file, addFile, removeFile, upload } = useUpload(async (data) => {
+    if (data.status === "ok") {
+      setData(data);
+      navigate("/data-config");
+    } else {
+      console.error("La respuesta del servidor no es válida:", data);
+    }
+    setIsUploading(false);
+  });
 
   const handleUpload = async () => {
-    if (files.length === 0) return;
+    if (!file || file.length === 0) return;
     setIsUploading(true);
     try {
       await upload();
@@ -35,14 +33,19 @@ const UploadPage = () => {
     }
   };
 
-  // Creamos una función para controlar que solo entre uno
   const handleAddFile = (newFiles: File[]) => {
-    if (files.length > 0) {
+    if (file && file.length > 0) {
       alert("Solo puedes cargar un archivo a la vez.");
       return;
     }
-    // Si solo quieres el primero aunque suelte varios de golpe
-    addFiles([newFiles[0]]);
+    const allowedExtensions = ['.xlsx', '.xls', '.csv', '.parquet'];
+    const fileExtension = newFiles[0].name.substring(newFiles[0].name.lastIndexOf('.')).toLowerCase();
+
+    if (!allowedExtensions.includes(fileExtension)) {
+      alert(`Formato de archivo no soportado. Por favor, sube un archivo: ${allowedExtensions.join(', ')}`);
+      return; 
+    }
+    addFile([newFiles[0]]);
   };
 
   // Estilos de la página
@@ -72,9 +75,11 @@ const UploadPage = () => {
     transition: "background-color 0.2s",
   });
 
+  // Guardamos una variable bandera para mejorar legibilidad
+  const hasFile = file && file.length > 0;
+
   return (
     <div style={containerStyle}>
-      {/* Componente extraído */}
       {isUploading && <LoadingOverlay />}
 
       <div style={{ width: "100%", maxWidth: "900px", textAlign: "center" }}>
@@ -82,17 +87,19 @@ const UploadPage = () => {
           Selecciona un Archivo para Procesar
         </h2>
 
-        {files.length === 0 && <Dropzone onFiles={handleAddFile} />}
+        {!hasFile && <Dropzone onFiles={handleAddFile} />}
 
-        <FileList
-          files={files}
-          remove={removeFile}
-        />
+        {hasFile && (
+          <FileItem
+            item={file[0]}
+            onRemove={() => removeFile(0)}
+          />
+        )}
 
         <button
           onClick={handleUpload}
-          disabled={files.length === 0 || isUploading}
-          style={btnStyle(files.length === 0 || isUploading)}
+          disabled={!hasFile || isUploading}
+          style={btnStyle(!hasFile || isUploading)}
         >
           {isUploading ? "Cargando..." : "Lanzar Documentos"}
         </button>

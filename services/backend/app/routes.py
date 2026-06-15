@@ -80,8 +80,7 @@ def get_llm_providers():
 
 @router.post("/upload") # 2. Cambiamos 'app.post' por 'router.post'
 async def handle_upload(
-    file: UploadFile = File(...),
-    preprocess: bool = Form(...)
+    file: UploadFile = File(...)
 ):
     """
     Handle file upload and preprocessing.
@@ -98,25 +97,22 @@ async def handle_upload(
 
         if file.filename.endswith(('.xlsx', '.xls')):
             data = pd.read_excel(io.BytesIO(content))
-        else:
+            save_funntion = lambda df, path: df.to_excel(path, index=False)
+        elif file.filename.endswith('.csv'):
             # Añadimos soporte para CSV por si acaso
             data = pd.read_csv(io.BytesIO(content))
-
-        if preprocess:
-            columnas_a_limpiar = ['datosclini', 'sospechadiag']
-            for col in columnas_a_limpiar:
-                if col in data.columns:
-                    data[f'{col}_limpio'] = limpiar_datos(data[col])
-
+            save_funntion = lambda df, path: df.to_csv(path, index=False)
+        elif file.filename.endswith('.parquet'):
+            data = pd.read_parquet(io.BytesIO(content))
+            save_funntion = lambda df, path: df.to_parquet(path, index=False)
+        else:
+            raise ValueError("Formato de archivo no soportado")
+        
         n_rows = len(data)
         final_columns = data.columns.tolist()
 
-        if preprocess:
-            save_path = os.path.join("uploads", f"procesado_{file.filename}")
-            data.to_excel(save_path, index=False)
-        else:
-            save_path = os.path.join("uploads", file.filename)
-            data.to_excel(save_path, index=False)
+        save_path = os.path.join("uploads", file.filename)
+        save_funntion(data, save_path)
 
         # Limpiar valores problemáticos para JSON
         data.replace([np.inf, -np.inf], np.nan, inplace=True)
