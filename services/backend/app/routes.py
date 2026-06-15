@@ -31,6 +31,45 @@ logger = logging.getLogger(__name__)
 # 1. Usamos el APIRouter()
 router = APIRouter()
 
+def read_dataset(target) -> pd.DataFrame:
+    """
+    Lee un dataset de forma dinámica. 
+    Soporta strings (rutas en disco) u objetos bytes/BytesIO (carga en memoria).
+    """
+    if isinstance(target, str):
+        filename = target
+        source = target
+    elif hasattr(target, 'filename'):  # Es un UploadFile de FastAPI
+        filename = target.filename
+        # Extraemos los bytes directamente con .file.read() y los pasamos a BytesIO
+        target.file.seek(0)
+        source = io.BytesIO(target.file.read())
+    elif hasattr(target, 'read'):  # Ya es un objeto tipo archivo / BytesIO
+        filename = getattr(target, 'filename', '.xlsx')  # Fallback genérico si no tiene nombre
+        target.seek(0)
+        source = target
+    else:
+        raise ValueError("El formato del objeto provisto no es mapeable a un dataset")
+    
+    if filename.endswith(('.xlsx', '.xls')):
+        return pd.read_excel(source)
+    elif filename.endswith('.csv'):
+        return pd.read_csv(source)
+    elif filename.endswith('.parquet'):
+        return pd.read_parquet(source)
+    else:
+        raise ValueError("Formato de archivo no soportado")
+
+def save_dataset(data: pd.DataFrame, path:str):
+    if path.endswith(('.xlsx', '.xls')):
+        data.to_excel(path, index=False)
+    elif path.endswith('.csv'):
+        data.to_csv(path, index=False)
+    elif path.endswith('.parquet'):
+        data.to_parquet(path, index=False)
+    else:
+        raise ValueError("Formato de archivo no soportado")
+    
 @router.get("/models")
 def get_available_models():
     """
@@ -93,26 +132,13 @@ async def handle_upload(
         Status and results of the upload and preprocessing.
     """
     try: 
-        content = await file.read()
-
-        if file.filename.endswith(('.xlsx', '.xls')):
-            data = pd.read_excel(io.BytesIO(content))
-            save_funntion = lambda df, path: df.to_excel(path, index=False)
-        elif file.filename.endswith('.csv'):
-            # Añadimos soporte para CSV por si acaso
-            data = pd.read_csv(io.BytesIO(content))
-            save_funntion = lambda df, path: df.to_csv(path, index=False)
-        elif file.filename.endswith('.parquet'):
-            data = pd.read_parquet(io.BytesIO(content))
-            save_funntion = lambda df, path: df.to_parquet(path, index=False)
-        else:
-            raise ValueError("Formato de archivo no soportado")
+        data = read_dataset(file)
         
         n_rows = len(data)
         final_columns = data.columns.tolist()
 
         save_path = os.path.join("uploads", file.filename)
-        save_funntion(data, save_path)
+        save_dataset(data, save_path)
 
         # Limpiar valores problemáticos para JSON
         data.replace([np.inf, -np.inf], np.nan, inplace=True)
@@ -138,10 +164,7 @@ async def handle_upload(
 @router.get("/get-page")
 def get_page(path: str, page: int = 1, size: int =150, filters: str = "{}"):
     try:
-        if path.endswith(('.xlsx', '.xls')):
-            data = pd.read_excel(path)
-        else:
-            data = pd.read_csv(path)
+        data = read_dataset(path)
         
         try:
             filter_dict = json.loads(filters)
@@ -169,26 +192,34 @@ def get_page(path: str, page: int = 1, size: int =150, filters: str = "{}"):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+class SearchConfig(BaseModel):
+    search_strategy: str
+    max_iter: int
+    max_combinations: int
+    cv_folds: int
+    tiemout_minutes: int
 
-class Dossier(BaseModel):
+class Manifest(BaseModel):
     """Model representing a dossier with total count, 
     path, features, targets, and mandatory fields."""
     n_rows: int
     path: str
     features: List[str]
     targets: List[str]
-    mandatory: List[str]
+    shielded: List[str]
     model: str
+    execution_mode: str
+    search_config: SearchConfig
 
 @router.post("/process-state1")
-def process_state_1(data: Dossier):
+def process_state_1(data: Manifest):
     try:
         # 1. Carga de datos (Soporte para Excel y CSV con manejo de encoding)
         
         device = get_device()
         print(f"TRABAJANDO CON: {device}")
 
-        df = pd.read_excel(data.path)
+        df = read_dataset(data.path)
         df = df.fillna("")
         if df.empty:
             raise ValueError("Dataset is empty")
@@ -219,10 +250,18 @@ def process_state_1(data: Dossier):
 
             col_data = classify_data(series, n_rows)
 
-            col_data.update({
-                "user_mandatory": col in data.mandatory,
+            update_data = {
+                "user_mandatory": col in data.shielded,
                 "unique_pool": series.dropna().astype(str).unique()[:20].tolist()
-            })
+            }
+
+            if col in data.shielded:
+                update_data["llm_instruction"] = (
+                    "This feature is statistically irrelevant, but the user requires its inclusion "
+                    "for business reasons. Generate code that includes it in every stage of the pipeline."
+                )
+
+            col_data.update(update_data)
 
             if col_data["technical_level"] in [1, 2]:
                 columnas.append(col)
@@ -250,7 +289,7 @@ def process_state_1(data: Dossier):
         for target in data.targets:
             if target in df.columns:
                 new_data[target] = df[target]
-        new_data.to_excel(save_path, index=False)
+        save_dataset(new_data, save_path)
         sample_df = stratified_sample_100(df[columnas], data.targets)
         sample_df_clean = sample_df.astype(object).fillna("")
         metadata ={

@@ -33,7 +33,7 @@ const DataConfigPage = () => {
   const { models: ollamaModels, loading: loadingModels } = useOllamaModels();
 
   // 1. Estados
-  const [selectedModel, setSelectedModel] = useState(""); // <-- 2. Estado del modelo
+  const [selectedModel, setSelectedModel] = useState("");
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() => data?.columnas.slice(0, 5) || []); // Inicializamos con las primeras 5 columnas
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
@@ -81,22 +81,30 @@ const DataConfigPage = () => {
       return;
     }
 
-    if (!selectedModel) { // <-- 3. Validación obligatoria
+    if (!selectedModel) {
       alert("Por favor, selecciona un modelo de IA para el análisis.");
       return;
     }
 
-    const dossier = {
+    const manifest = {
       n_rows: data.n_rows,
       path: data.path,
       features: selectedFeatures,
       targets: selectedTargets,
-      mandatory: Object.keys(blindadas).filter(k => blindadas[k] && roles[k] === 'feature'),
-      model: selectedModel
+      shielded: Object.keys(blindadas).filter(k => blindadas[k] && roles[k] === 'feature'),
+      model: selectedModel,
+      execution_mode: "auto",
+      search_config: {
+        search_strategy: "auto",
+        max_iter: 50,
+        max_combinations: 200,
+        cv_folds: 10,
+        timeout_minutes: 30
+      }
     };
 
     try {
-      await runAnalysis(dossier);
+      await runAnalysis(manifest);
     } catch {
       alert("Error al procesar el análisis.");
     }

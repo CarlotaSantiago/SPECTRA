@@ -1,10 +1,10 @@
 // src/adapters/configAdapter.ts
 import { post, ollamaGet } from "./xhr";
-import type { DossierPayload } from "../types"
+import type { ManifestPayload } from "../types"
 import axios from "axios";
 
-export const processState1 = (dossier: DossierPayload) => {
-    return post("/process-state1", dossier);
+export const processState1 = (manifest: ManifestPayload) => {
+    return post("/process-state1", manifest);
 }
 
 export type LLMModelOption = { id: string; label: string };
