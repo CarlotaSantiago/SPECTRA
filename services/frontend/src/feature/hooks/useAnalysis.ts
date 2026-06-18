@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { processState1 } from "../../adapter/analysisAdapter";
-import type { DossierPayload } from "../../types";
+import type { ManifestPayload } from "../../types";
 
 export const useAnalysis = (onSuccess?: (data: any) => void) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const runAnalysis = async (payload: DossierPayload) => {
+  const runAnalysis = async (payload: ManifestPayload) => {
     setLoading(true);
     setError(null);
 

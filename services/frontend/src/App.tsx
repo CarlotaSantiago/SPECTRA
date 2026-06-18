@@ -1,17 +1,16 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Upload from './pages/UploadPage';
 import DataConfig from './pages/DataConfigPage';
-import Results from './pages/ResultsPage';
 import ViewData from './pages/ViewDataPage';
+import ViewScript from './pages/ViewScriptPage';
+import ViewSesult from './pages/ViewResultsPage';
 
 function App() {
   return (
     <Router>
       <div style={{ 
         display: 'flex', 
-        flexDirection: 'column', 
-        height: '100vh', 
-        overflow: 'hidden',
+        flexDirection: 'column',
         backgroundColor: '#121212' // Evita destellos blancos al cargar
       }}>
         
@@ -35,9 +34,10 @@ function App() {
         }}>
           <Routes>
             <Route path="/" element={<Upload />} />
-            <Route path='/data-config' element={<DataConfig />} />
-            <Route path='/results' element={<Results />} />
-            <Route path='/view-results' element={<ViewData />} />
+            <Route path='/config-data' element={<DataConfig />} />
+            <Route path='/view-data' element={<ViewData />} />
+            <Route path='/edit-script' element={<ViewScript />} />
+            <Route path='/results' element={<ViewSesult />} />
           </Routes>
         </main>
 

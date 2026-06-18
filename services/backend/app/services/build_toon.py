@@ -37,6 +37,7 @@ def build_toon_s2(metadata, type_correlation, max_dependency, dependency, target
     with open("toon_s2_prompt.txt", "w", encoding="utf-8") as f:
         f.write(toon_str)
     return toon_str
+
 def build_toon_payload(metadata, analysis_results, sample_df, features, target_meta):
     # 1. Metadatos Globales
     toon_str = "# GLOBAL_METADATA\n"

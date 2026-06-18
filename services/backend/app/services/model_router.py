@@ -262,7 +262,7 @@ def build_staged_prompt_1_gating(toon_dossier: dict) -> str:
     features    = list(toon_dossier.get("categorical_evaluation", {}).keys()) + \
                   list(toon_dossier.get("classified_evaluation",  {}).keys())
     search_cfg  = toon_dossier.get("global_metadata", {}).get("search_config", {})
-    cv_folds    = search_cfg.get("cv_folds", 10)
+    cv_folds    = search_cfg.get("cv_folds", 1)
     timeout     = search_cfg.get("timeout_minutes", 30)
     path        = toon_dossier.get("location", {}).get("path", "data.csv")
     ext         = toon_dossier.get("location", {}).get("extension_file", ".csv")
@@ -329,7 +329,7 @@ def build_staged_prompt_2_specialists(
     Contexto mínimo: perfiles de los targets dependientes.
     """
     search_cfg = toon_dossier.get("global_metadata", {}).get("search_config", {})
-    cv_folds   = search_cfg.get("cv_folds", 10)
+    cv_folds   = search_cfg.get("cv_folds", 1)
     timeout    = search_cfg.get("timeout_minutes", 30)
     targets_ev = toon_dossier.get("targets_evaluation", {})
 

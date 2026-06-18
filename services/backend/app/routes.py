@@ -5,7 +5,7 @@ import logging
 import os
 import re
 import requests
-
+from pathlib import PurePosixPath, Path
 import numpy as np
 import pandas as pd
 import torch
@@ -23,7 +23,7 @@ from app.services.processor import limpiar_datos
 from app.services.build_toon import build_toon_payload, integrar_analisis_llm
 from app.services.strarified_sampling import stratified_sample_100
 from app.services.orchestation import build_chain_strategy, compute_target_dependency_matrix
-from app.services.training_service_proxy import proxy_llm_providers, proxy_process_state2
+from app.services.training_service_proxy import proxy_llm_providers, proxy_process_state2, proxy_execute_script
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +197,7 @@ class SearchConfig(BaseModel):
     max_iter: int
     max_combinations: int
     cv_folds: int
-    tiemout_minutes: int
+    timeout_minutes: int
 
 class Manifest(BaseModel):
     """Model representing a dossier with total count, 
@@ -389,4 +389,47 @@ def process_state_2(data: Dict[str, Any]):
         return JSONResponse(content=body, status_code=status_code)
     except Exception as e:
         logger.error("process_state_2 proxy failed: %s", e)
+        return {"status": "error", "message": str(e)}
+
+@router.post("/send-script")
+def entreno(data: Dict[str, Any]):
+    try:
+        script = data.get("script") or "# No script provided"
+        
+        # 1. Obtenemos la ruta absoluta local (Estilo Windows si estás en Windows)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        local_path = os.path.abspath(os.path.join(current_dir, "..", "model", "orchestation_script.py"))
+
+        
+        path_obj = Path(local_path)
+
+        # 2. Tomamos solo las partes de la ruta (saltándonos el 'C:') y las unimos con '/'
+        linux_path = "uploads/datos_limpios.xlsx"
+
+        print(f"Ruta formateada para Linux: {linux_path}")
+        
+        # Si local_path era: C:\proyectos\micro\model\orchestation_script.py
+        # linux_path será:  /proyectos/micro/model/orchestation_script.py
+        
+        # 3. Guardas el archivo en tu máquina local normalmente (con la ruta de tu SO)
+        with open(local_path, "w", encoding="utf-8") as f:
+            f.write(script)
+
+        json = {
+            "script": script,
+            "path": linux_path,
+            "output_path": "./model",
+            "manifest": {
+                "additionalProp1": {}
+            }
+        }  
+        proxy_execute_script(json)
+        # 4. Le mandas al otro micro (o devuelves) la ruta formateada para Linux
+        return {
+            "status": "ok", 
+            "message": "Script guardado localmente",
+            "linux_path": linux_path  # <-- Esta es la que le sirve al micro en Linux
+        }
+        
+    except Exception as e:
         return {"status": "error", "message": str(e)}

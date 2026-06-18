@@ -15,7 +15,7 @@ const UploadPage = () => {
   const { file, addFile, removeFile, upload } = useUpload(async (data) => {
     if (data.status === "ok") {
       setData(data);
-      navigate("/data-config");
+      navigate("/config-data");
     } else {
       console.error("La respuesta del servidor no es válida:", data);
     }

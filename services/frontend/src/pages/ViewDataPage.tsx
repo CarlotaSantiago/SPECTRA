@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowLeft, Save, Brain, LayoutGrid, Activity, ChevronUp, ChevronDown } from "lucide-react";
 import { ModelPicker } from "../feature/components/ModelPicker";
 import { useOllamaModels } from "../feature/hooks/useOllamaModels";
+import { LoadingOverlay } from "../feature/components/LoadingOverlay";
 
 
 // =====================================================================
@@ -91,6 +92,7 @@ const ViewDataPage = () => {
   // Dentro de ViewDataPage, al recibir el state o inicializar:
   const { state } = useLocation();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
   const { models: ollamaModels, loading: loadingModels, resolveSelection } = useOllamaModels();
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [selectedModel, setSelectedModel] = useState(""); // <-- 2. Estado del modelo
@@ -234,18 +236,31 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
   }));
 };
   const handleEditFeature = (featureName: string, field: string, value: string) => {
-    setDossier((prev: any) => ({
+  setDossier((prev: any) => {
+    const isTarget = prev.data.targets_evaluation && !!prev.data.targets_evaluation[featureName];
+    const section = isTarget ? 'targets_evaluation' : 'categorical_evaluation';
+    
+    // Si el usuario cambia la subclase a NOMINAL, reseteamos el string de mapeo a vacío
+    const extraFields = (field === 'subclass' && value === 'NOMINAL') 
+      ? { mapping: "{}" } 
+      : {};
+
+    return {
       ...prev,
       data: {
         ...prev.data,
-        categorical_evaluation: {
-          ...prev.data.categorical_evaluation,
-          [featureName]: { ...prev.data.categorical_evaluation[featureName], [field]: value }
+        [section]: {
+          ...prev.data[section],
+          [featureName]: { 
+            ...prev.data[section][featureName], 
+            [field]: value,
+            ...extraFields // Inyecta el reseteo si cumple la condición
+          }
         }
       }
-    }));
-  };
-
+    };
+  });
+};
   // Cambiar estrategia (AUTO/MANUAL/etc)
   const handleEditStrategy = (newStrategy: string) => {
     setDossier((prev: any) => ({
@@ -283,6 +298,8 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
       return;
     }
 
+    setLoading(true);
+
     const { model, provider } = resolveSelection(selectedModel);
     const payload = {
       dossier: dossier.data, // Los datos editados (incluyendo mappings y orden)
@@ -301,9 +318,16 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
 
       if (response.ok) {
         const result = await response.json();
-        alert("Configuración enviada con éxito. Iniciando entrenamiento...");
         console.log("Respuesta del backend:", result);
-        // navigate("/training-progress"); // Opcional: Redirigir a una pantalla de carga
+        
+        // Le pasamos el resultado fresco del backend a la siguiente pantalla
+        navigate("/edit-script", { 
+          state: { 
+            scriptCode: result.script || result.data?.script,
+            // O si prefieres pasarle todo el objeto que devolvió el servidor:
+            toonData: result 
+          } 
+        });
       } else {
         throw new Error("Error en la respuesta del servidor");
       }
@@ -311,6 +335,7 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
       console.error("Error al enviar al backend:", error);
       alert("No se pudo conectar con el servidor.");
     }
+    setLoading(false);
   };
   const handleSave = () => {
     console.log("Dossier Final:", dossier);
@@ -321,6 +346,7 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
 
   return (
     <div style={containerStyle}>
+      {(loading || loadingModels) && <LoadingOverlay message={loadingModels ? "Cargando modelos de IA..." : "Generando script de entreno..."} />}
       <div style={headerStyle}>
         <button onClick={() => navigate(-1)} style={backBtnStyle}><ArrowLeft size={18} /> Volver</button>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -333,7 +359,7 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
         </div>
         {/* Botón de Enviar a Backend */}
         <button onClick={handleDeploy} style={deployBtnStyle}>
-          <Brain size={18} /> Iniciar Entrenamiento
+          <Brain size={18} /> Iniciar Generación de Script
         </button>
       </div>
 
@@ -448,8 +474,6 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
                     >
                       <option value="NOMINAL">NOMINAL</option>
                       <option value="ORDINAL">ORDINAL</option>
-                      <option value="BINARY">BINARY</option>
-                      <option value="TEXT_NLP">TEXT_NLP</option>
                     </select>
                   </div>
                   <label style={labelStyle}>Razonamiento Semántico:</label>
@@ -625,164 +649,6 @@ const handleUpdateMetrics = (targetName: string, metric: string) => {
               </div>
             </>
           )}
-        </div>
-        <div style={sidebarStyle}>
-          <h2 style={sectionTitle}><Save size={18}/> Ajustes de Entrenamiento</h2>
-          
-          {/* CARD: VALIDACIÓN CRUZADA */}
-          <section style={cardStyle}>
-            <h3 style={cardTitle}><Activity size={16}/> Validación Cruzada (CV)</h3>
-            <label style={labelStyle}>Estrategia:</label>
-            <select 
-              value={dossier.data.user_constraints.cv_strategy.type}
-              onChange={(e) => handleUpdateCV("type", e.target.value)}
-              style={{...selectStyle, width: '100%', marginTop: '5px'}}
-            >
-              <option value="KFold">KFold (Regresión)</option>
-              <option value="StratifiedKFold">StratifiedKFold (Clasificación)</option>
-              <option value="ShuffleSplit">ShuffleSplit (Aleatorio)</option>
-              <option value="TimeSeriesSplit">TimeSeriesSplit (Temporal)</option>
-            </select>
-
-            <label style={labelStyle}>Número de Folds: {dossier.data.user_constraints.cv_strategy.folds}</label>
-            <input 
-              type="range" min="2" max="20" 
-              value={dossier.data.user_constraints.cv_strategy.folds}
-              onChange={(e) => handleUpdateCV("folds", parseInt(e.target.value))}
-              style={{width: '100%', accentColor: '#648f8c'}}
-            />
-          </section>
-
-          {/* CARD: FILTROS Y ENSAMBLADOS */}
-          <section style={cardStyle}>
-            <h3 style={cardTitle}><LayoutGrid size={16}/> Selección de Features</h3>
-            <label style={labelStyle}>Umbral (Threshold): {dossier.data.user_constraints.feature_selection_threshold}</label>
-            <input 
-              type="number" step="0.01"
-              value={dossier.data.user_constraints.feature_selection_threshold}
-              onChange={(e) => handleUpdateConstraint("feature_selection_threshold", parseFloat(e.target.value))}
-              style={{...mappingInputStyle, width: '100%', textAlign: 'left', padding: '5px'}}
-            />
-
-            <div style={{...infoRow, marginTop: '15px'}}>
-              <label style={{...labelStyle, marginTop: 0}}>Permitir Ensamblados:</label>
-              <input 
-                type="checkbox" 
-                checked={dossier.data.user_constraints.allow_ensembles}
-                onChange={(e) => handleUpdateConstraint("allow_ensembles", e.target.checked)}
-                style={{accentColor: '#648f8c', transform: 'scale(1.2)'}}
-              />
-            </div>
-          </section>
-
-          {/* CARD: PRIORIDADES */}
-          <section style={cardStyle}>
-            <h3 style={cardTitle}><Brain size={16}/> Prioridad de Optimización</h3>
-            <select 
-              multiple
-              value={dossier.data.user_constraints.optimization_priority}
-              onChange={(e) => {
-                const values = Array.from(e.target.selectedOptions, option => option.value);
-                handleUpdateConstraint("optimization_priority", values);
-              }}
-              style={{...selectStyle, width: '100%', height: '80px'}}
-            >
-              <option value="Performance">Performance (Precisión)</option>
-              <option value="Interpretability">Interpretability (Explicación)</option>
-              <option value="Inference Speed">Inference Speed (Latencia)</option>
-              <option value="Training Speed">Training Speed (Tiempo)</option>
-            </select>
-            <span style={{fontSize: '10px', color: '#666', marginTop: '5px', display: 'block'}}>
-              * Ctrl + Click para seleccionar varios
-            </span>
-          </section>
-
-          {/* --- SECCIÓN: ESTRATEGIA DE MODELADO --- */}
-          <section style={cardStyle}>
-            <h3 style={cardTitle}><Brain size={16}/> Selección de Modelos</h3>
-            
-            <label style={labelStyle}>Modo de Competición:</label>
-            <select 
-              value={dossier.data.user_constraints.model_selection.mode}
-              onChange={(e) => handleUpdateConstraint("model_selection", {
-                ...dossier.data.user_constraints.model_selection, mode: e.target.value
-              })}
-              style={{...selectStyle, width: '100%', marginTop: '5px'}}
-            >
-              <option value="AUTONOMOUS_COMPETITION">Competición Autónoma</option>
-              <option value="SINGLE_BEST_MODEL">Mejor Modelo Único</option>
-              <option value="ENSEMBLE_ONLY">Solo Ensamblados</option>
-            </select>
-
-            <label style={labelStyle}>Librerías Permitidas:</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '8px' }}>
-              {["scikit-learn", "xgboost", "lightgbm", "catboost"].map((lib) => {
-                const libs = dossier.data.user_constraints.model_selection.libraries;
-                const isSelected = libs.includes(lib);
-                return (
-                  <button
-                    key={lib}
-                    onClick={() => {
-                      const newLibs = isSelected ? libs.filter((l: string) => l !== lib) : [...libs, lib];
-                      handleUpdateConstraint("model_selection", { ...dossier.data.user_constraints.model_selection, libraries: newLibs });
-                    }}
-                    style={{
-                      ...miniBtnStyle,
-                      padding: '4px 8px',
-                      fontSize: '10px',
-                      backgroundColor: isSelected ? '#648f8c' : '#121212',
-                      color: isSelected ? 'white' : '#648f8c'
-                    }}
-                  >
-                    {lib}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* --- SECCIÓN: OPTIMIZACIÓN DE HIPERPARÁMETROS --- */}
-          <section style={cardStyle}>
-            <h3 style={cardTitle}><Activity size={16}/> Hyperparameter Tuning</h3>
-            
-            <label style={labelStyle}>Tipo de Búsqueda:</label>
-            <select 
-              value={dossier.data.user_constraints.tuning_strategy.search_type}
-              onChange={(e) => handleUpdateConstraint("tuning_strategy", {
-                ...dossier.data.user_constraints.tuning_strategy, search_type: e.target.value
-              })}
-              style={{...selectStyle, width: '100%', marginTop: '5px'}}
-            >
-              <option value="Bayesian_Optimization">Bayesian Optimization (Smart)</option>
-              <option value="Randomized_Search">Randomized Search (Fast)</option>
-              <option value="Grid_Search">Grid Search (Exhaustive)</option>
-            </select>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
-              <div>
-                <label style={labelStyle}>Máx Intentos:</label>
-                <input 
-                  type="number" 
-                  value={dossier.data.user_constraints.tuning_strategy.max_trials}
-                  onChange={(e) => handleUpdateConstraint("tuning_strategy", {
-                    ...dossier.data.user_constraints.tuning_strategy, max_trials: parseInt(e.target.value)
-                  })}
-                  style={{...mappingInputStyle, width: '100%'}}
-                />
-              </div>
-              <div>
-                <label style={labelStyle}>Timeout (s):</label>
-                <input 
-                  type="number" 
-                  value={dossier.data.user_constraints.tuning_strategy.timeout}
-                  onChange={(e) => handleUpdateConstraint("tuning_strategy", {
-                    ...dossier.data.user_constraints.tuning_strategy, timeout: parseInt(e.target.value)
-                  })}
-                  style={{...mappingInputStyle, width: '100%'}}
-                />
-              </div>
-            </div>
-          </section>
         </div>
       </div>
     </div>

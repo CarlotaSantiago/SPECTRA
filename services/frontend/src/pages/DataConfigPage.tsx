@@ -34,7 +34,7 @@ const DataConfigPage = () => {
 
   // 1. Estados
   const [selectedModel, setSelectedModel] = useState("");
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(() => data?.columnas.slice(0, 5) || []); // Inicializamos con las primeras 5 columnas
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(["descrip", "edad", "datosclini", "sospechadiag", "especialidad", "sala", "prioridad"]); // () => data?.columnas.slice(0, 5) ||  Inicializamos con las primeras 5 columnas
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [roles, setRoles] = useState<Record<string, 'feature' | 'target' | 'none'>>({});
@@ -42,7 +42,7 @@ const DataConfigPage = () => {
 
   const { runAnalysis, loading } = useAnalysis((toonData) => {
     console.log("Resultados Etapa 1:", toonData);
-    navigate("/view-results", { state: { toonData } });
+    navigate("/view-data", { state: { toonData } });
   });
 
   if (!data) return <div style={{ color: "white", padding: "20px" }}>No hay datos.</div>;
@@ -163,7 +163,7 @@ const DataConfigPage = () => {
         onClick={handleNextStep} 
         label={loading ? "Procesando..." : "Confirmar Selección y Avanzar"} 
       />
-      <footer style={{ marginTop: "10px", fontSize: "12px", color: "#888", textAlign: "center" }}>
+      <footer style={{ marginTop: "2px", fontSize: "12px", color: "#888", textAlign: "center" }}>
           Selección de roles: Dossier Inicial (Features/Targets)
         </footer>
     </div>
@@ -185,8 +185,7 @@ const selectStyle: React.CSSProperties = {
 const containerStyle: React.CSSProperties = {
   display: "flex", 
   flexDirection: "column", 
-  height: "100%",
-  width: "100%",
+  height: "calc(100vh - 47px)",
   padding: "20px", 
   backgroundColor: "#121212", 
   color: "white",

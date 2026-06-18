@@ -13,6 +13,6 @@ services:
     volumes:
       - ./services/backend/uploads:/app/uploads
       - ./services/backend/model:/app/model
-      # - /var/run/docker.sock:/var/run/docker.sock  # descomentar para execution_mode docker/auto
+      - /var/run/docker.sock:/var/run/docker.sock  # descomentar para execution_mode docker/auto
     extra_hosts:
       - "host.docker.internal:host-gateway"
