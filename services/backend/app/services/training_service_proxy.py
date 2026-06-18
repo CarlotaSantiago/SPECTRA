@@ -45,8 +45,7 @@ def proxy_execute_script(data: dict[str, Any]):
         }, 200
     try:
         body = response.json()
-        print(body)
-        print(response.status_code)
+        
     except ValueError:
         logger.error(
             "Training service returned non-JSON response (HTTP %s)",
@@ -56,7 +55,7 @@ def proxy_execute_script(data: dict[str, Any]):
             "status": "error",
             "message": "Training service returned an invalid response",
         }, 200
-
+    return response.status_code
 
 def proxy_process_state2(data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     url = f"{TRAINING_SERVICE_URL}/process-state2"

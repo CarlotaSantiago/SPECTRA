@@ -9,6 +9,7 @@ from pathlib import PurePosixPath, Path
 import numpy as np
 import pandas as pd
 import torch
+import json as py_json
 from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from fastapi.responses import JSONResponse
 from pandas.api.types import is_float_dtype, is_numeric_dtype, is_object_dtype, is_string_dtype
@@ -396,26 +397,19 @@ def entreno(data: Dict[str, Any]):
     try:
         script = data.get("script") or "# No script provided"
         
-        # 1. Obtenemos la ruta absoluta local (Estilo Windows si estás en Windows)
+        # 1. Rutas locales para guardar el script temporal
         current_dir = os.path.dirname(os.path.abspath(__file__))
         local_path = os.path.abspath(os.path.join(current_dir, "..", "model", "orchestation_script.py"))
-
-        
-        path_obj = Path(local_path)
-
-        # 2. Tomamos solo las partes de la ruta (saltándonos el 'C:') y las unimos con '/'
         linux_path = "uploads/datos_limpios.xlsx"
 
         print(f"Ruta formateada para Linux: {linux_path}")
         
-        # Si local_path era: C:\proyectos\micro\model\orchestation_script.py
-        # linux_path será:  /proyectos/micro/model/orchestation_script.py
-        
-        # 3. Guardas el archivo en tu máquina local normalmente (con la ruta de tu SO)
+        # 2. Guardar el archivo localmente
         with open(local_path, "w", encoding="utf-8") as f:
             f.write(script)
 
-        json = {
+        # payload estructurado para lanzar el proceso en el otro micro/contenedor
+        payload_to_proxy = {
             "script": script,
             "path": linux_path,
             "output_path": "./model",
@@ -423,13 +417,31 @@ def entreno(data: Dict[str, Any]):
                 "additionalProp1": {}
             }
         }  
-        proxy_execute_script(json)
-        # 4. Le mandas al otro micro (o devuelves) la ruta formateada para Linux
-        return {
-            "status": "ok", 
-            "message": "Script guardado localmente",
-            "linux_path": linux_path  # <-- Esta es la que le sirve al micro en Linux
-        }
+        
+        # 3. Se ejecuta el entrenamiento (esto genera los logs en consola y el archivo en disco)
+        response_status = proxy_execute_script(payload_to_proxy)
+        
+        # 4. LEER EL ARCHIVO JSON GENERADO POR EL ENTRENAMIENTO
+        # Apuntamos a la ruta donde tu script de Python guardó el JSON estructurado
+        metrics_file_path = os.path.abspath(os.path.join(current_dir, "..", "model", "metrics.json"))
+        
+        # Inicializamos un body vacío por si algo falla
+        structured_body = {"targets": {}}
+        
+        if os.path.exists(metrics_file_path):
+            with open(metrics_file_path, "r", encoding="utf-8") as f:
+                structured_body = py_json.load(f)
+            print("¡Archivo de métricas estructurado cargado con éxito!")
+        else:
+            print(f"Advertencia: No se encontró el archivo de métricas en {metrics_file_path}")
+            # Si no existe, puedes devolver un error o construir una respuesta alternativa 
+            return JSONResponse(
+                content={"status": "error", "message": "El entrenamiento terminó pero no generó el reporte metrics.json"}, 
+                status_code=500
+            )
+
+        # 5. Enviamos al frontend el JSON estructurado con la clave 'targets' directamente
+        return JSONResponse(content=structured_body, status_code=200)
         
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
