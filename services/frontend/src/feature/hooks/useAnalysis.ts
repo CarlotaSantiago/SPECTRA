@@ -1,27 +1,22 @@
-import { useState } from "react";
+/**
+ * @file useAnalysis.ts
+ * @description Hook encargado de abstraer la llamada al endpoint de análisis de datos (State 1).
+ */
+
+import { useAsyncAction } from "./useAsyncAction";
 import { processState1 } from "../../adapter/analysisAdapter";
 import type { ManifestPayload } from "../../types";
 
+/**
+ * Encapsula la llamada a `processState1` con gestión automática de estado (loading, error).
+ * 
+ * @param onSuccess - Callback que se ejecuta recibiendo el `DossierData` si la petición es exitosa.
+ * @returns Objeto con la función disparadora `runAnalysis` y los estados reactivos `loading` y `error`.
+ */
 export const useAnalysis = (onSuccess?: (data: any) => void) => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const runAnalysis = async (payload: ManifestPayload) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const result = await processState1(payload);
-      onSuccess?.(result);
-      return result;
-    } catch (err: any) {
-      console.error("Analysis error:", err);
-      setError(err.message || "Error en análisis");
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  const { run: runAnalysis, loading, error } = useAsyncAction<ManifestPayload, any>(
+    processState1,
+    onSuccess
+  );
   return { runAnalysis, loading, error };
 };

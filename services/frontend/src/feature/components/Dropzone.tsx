@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { Upload } from "lucide-react";
 
+/**
+ * Componente interactivo para subir archivos mediante "arrastrar y soltar" (Drag & Drop)
+ * o mediante selección clásica del sistema de archivos.
+ * 
+ * @param props.onFiles - Callback ejecutado con el array de archivos (`File[]`) soltados o seleccionados.
+ */
 export const Dropzone = ({
   onFiles,
 }: {

@@ -1,5 +1,12 @@
+/**
+ * @file DataConfigPage.tsx
+ * @description Segunda etapa del pipeline (Stage 1).
+ * Renderiza la interfaz para que el usuario seleccione cuáles columnas actuarán 
+ * como features (variables predictoras) y cuáles como targets (variables a predecir).
+ */
+
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, Database, ArrowRight } from "lucide-react";
 import { useAnalysis } from "../feature/hooks/useAnalysis";
 import { useDatasetStore } from "../store/useDatasetStore";
@@ -9,7 +16,6 @@ import { DataTable } from "../feature/components/DataTable";
 import { useOllamaModels } from "../feature/hooks/useOllamaModels";
 import { ModelPicker } from "../feature/components/ModelPicker";
 
-// --- MINI COMPONENTES INTERNOS (Para que no falle) ---
 const HeaderNav = ({ onBack }: { onBack: () => void }) => (
   <button onClick={onBack} style={backBtnStyle}>
     <ArrowLeft size={16} /> Volver
@@ -25,14 +31,16 @@ const ActionButton = ({ loading, onClick, label }: { loading: boolean, onClick: 
     {label} <ArrowRight size={20} />
   </button>
 );
-  
-// --- PÁGINA PRINCIPAL ---
-const DataConfigPage = () => {
+
+/**
+ * Renderiza la tabla de datos parcial y controla la asignación de roles 
+ * antes de enviar el "ManifestPayload" para su análisis semántico en el backend.
+ */
+export const DataConfigPage = () => {
   const navigate = useNavigate();
   const data = useDatasetStore((s) => s.data);
   const { models: ollamaModels, loading: loadingModels } = useOllamaModels();
 
-  // 1. Estados
   const [selectedModel, setSelectedModel] = useState("");
   const [visibleColumns, setVisibleColumns] = useState<string[]>(["descrip", "edad", "datosclini", "sospechadiag", "especialidad", "sala", "prioridad"]); // () => data?.columnas.slice(0, 5) ||  Inicializamos con las primeras 5 columnas
   const [showColumnPicker, setShowColumnPicker] = useState(false);
@@ -47,7 +55,6 @@ const DataConfigPage = () => {
 
   if (!data) return <div style={{ color: "white", padding: "20px" }}>No hay datos.</div>;
 
-  // 2. Lógica
   const cycleRole = (col: string) => {
     setRoles(prev => {
       const current = prev[col] || 'none';
@@ -168,18 +175,6 @@ const DataConfigPage = () => {
         </footer>
     </div>
   );
-};
-
-// --- ESTILOS (Asegúrate de que DataTable y ColumnPicker acepten estas props) ---
-const selectStyle: React.CSSProperties = {
-  backgroundColor: "#1e1e1e",
-  color: "#648f8c",
-  border: "1px solid #648f8c33",
-  padding: "8px 12px",
-  borderRadius: "8px",
-  outline: "none",
-  cursor: "pointer",
-  fontWeight: "bold"
 };
 
 const containerStyle: React.CSSProperties = {

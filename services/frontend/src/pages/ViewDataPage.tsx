@@ -1,3 +1,10 @@
+/**
+ * @file ViewDataPage.tsx
+ * @description Tercera etapa del pipeline. Muestra al usuario los resultados del análisis
+ * inicial (State 1), incluyendo sugerencias de orquestación, cardinalidad, validaciones cruzadas,
+ * y permite al usuario modificar estas asunciones antes de enviar a generar el script (State 2).
+ */
+
 import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { ArrowLeft, Brain, LayoutGrid, Activity } from "lucide-react";
@@ -5,9 +12,8 @@ import { ModelPicker } from "../feature/components/ModelPicker";
 import { useOllamaModels } from "../feature/hooks/useOllamaModels";
 import { LoadingOverlay } from "../feature/components/LoadingOverlay";
 import { useData } from "../feature/hooks/useData";
-
-// Importamos nuestras abstracciones
-import { OrchestrationPlanViewer } from "../feature/components/OrchestationPlanViewer";
+import { OrchestrationPlanViewer } from "../feature/components/OrchestrationPlanViewer";
+import { initializeDossierConstraints } from "../feature/hooks/useDefaultConstraints";
 import { EvaluationCard } from "../feature/components/EvaluationCard";
 
 const TECHNICAL_LEVEL_MAP: Record<number, string> = {
@@ -23,7 +29,11 @@ const METRICS_OPTIONS = {
   REGRESSION: ["R2-Score", "MAE", "MSE", "RMSE", "MAPE"]
 };
 
-const ViewDataPage = () => {
+/**
+ * Página interactiva que renderiza el Dossier recibido del servidor.
+ * Administra el estado intermedio de las constraints dictadas por el usuario.
+ */
+export const ViewDataPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { models: ollamaModels, loading: loadingModels, resolveSelection } = useOllamaModels();
@@ -39,20 +49,9 @@ const ViewDataPage = () => {
     });
   });
   
-  const [dossier, setDossier] = useState<any>(() => {
-    const base = state?.toonData || null;
-    if (base && !base.data.user_constraints) {
-      base.data.user_constraints = {
-        cv_strategy: { type: "StratifiedKFold", folds: 1 },
-        feature_selection_threshold: 0.05,
-        allow_ensembles: true,
-        optimization_priority: ["Performance", "Interpretability"],
-        model_selection: { mode: "AUTONOMOUS_COMPETITION", libraries: ["scikit-learn", "xgboost", "lightgbm"] },
-        tuning_strategy: { search_type: "Bayesian_Optimization", max_trials: 2, timeout: 60 }
-      };
-    }
-    return base;
-  });
+  const [dossier, setDossier] = useState<any>(() =>
+    initializeDossierConstraints(state?.toonData || null)
+  );
 
   if (!dossier) {
     return (
@@ -63,7 +62,6 @@ const ViewDataPage = () => {
     );
   }
 
-  // --- MANEJADORES DE LOGICA DE EDICIÓN ---
   const handleUpdateMapping = (featureName: string, keyToUpdate: string, newVal: number) => {
     const feat = dossier.data.targets_evaluation[featureName] || dossier.data.categorical_evaluation[featureName];
     
@@ -330,9 +328,6 @@ const ViewDataPage = () => {
   );
 };
 
-// =====================================================================
-// DEFINICIÓN DE ESTILOS ESTÁTICOS
-// =====================================================================
 const containerStyle: React.CSSProperties = { backgroundColor: "#121212", color: "white", minHeight: "100vh", padding: "20px", fontFamily: "sans-serif" };
 const headerStyle: React.CSSProperties = { display: "flex", justifyContent: "space-between", marginBottom: "20px" };
 const contentLayout: React.CSSProperties = { display: "grid", gridTemplateColumns: "300px 1fr", gap: "20px" };

@@ -1,17 +1,35 @@
+/**
+ * @file DataTable.tsx
+ * @description Componente robusto de renderizado de tablas de datos con soporte para 
+ * paginación asíncrona, filtrado por columnas, redimensionado interactivo y gestión 
+ * de roles y blindaje de variables (features/targets).
+ */
+
 import { ShieldCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
+import { get } from "../../adapter/xhr";
 
-
+/**
+ * Propiedades del componente DataTable.
+ */
 interface DataTableProps {
-  filePath: string; // Recibimos el path del archivo guardado en el server
+  /** Ruta física del dataset en el backend para realizar las queries de paginación */
+  filePath: string;
   allColumns: string[];
   visibleColumns: string[];
   roles: Record<string, 'feature' | 'target' | 'none'>;
+  /** Diccionario indicando si una columna está "blindada" contra eliminación o transformación */
   blindadas: Record<string, boolean>;
+  /** Función para rotar o cambiar el rol lógico de una columna (Feature, Target, Ninguno) */
   onCycleRole: (col: string) => void;
+  /** Función para activar o desactivar el blindaje de una columna */
   onToggleBlindar: (e: React.MouseEvent, col: string) => void;
 }
 
+/**
+ * Tabla interactiva que consume el endpoint `/get-page` de forma paginada para 
+ * evitar sobrecargar el DOM y la memoria del cliente con datasets masivos.
+ */
 export const DataTable = ({
   filePath,
   allColumns,
@@ -28,11 +46,11 @@ export const DataTable = ({
   const [loading, setLoading] = useState(false);
   const [filters, setFilters] = useState<Record<string, string>>({});
   const [activeFilterCol, setActiveFilterCol] = useState<string | null>(null);
-  const pageSize = 150; // Cantidad de filas por vista
+  const pageSize = 150;
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
   const activeCols = allColumns.filter((c) => visibleColumns.includes(c));
   const totalPages = Math.ceil(totalRows / pageSize);
-  // --- LÓGICA DE RESIZE ---
+
   const handleResize = (colName: string, startX: number, startWidth: number) => {
     const onMouseMove = (e: MouseEvent) => {
       const newWidth = Math.max(50, startWidth + (e.clientX - startX));
@@ -50,24 +68,24 @@ export const DataTable = ({
     document.body.style.cursor = "col-resize";
   };
 
-  // --- FUNCIÓN PARA PEDIR DATOS AL BACKEND ---
   const fetchPage = async () => {
     if (!filePath) return;
     setLoading(true);
     try {
       const activeFilters = Object.fromEntries(
-        Object.entries(filters).filter(([_, v]) => v.trim() !== "")
+        Object.entries(filters).filter(([, v]) => v.trim() !== "")
       );
-      const filterParam = encodeURIComponent(JSON.stringify(filters));
-      const response = await fetch(
-        `http://localhost:8000/get-page?path=${encodeURIComponent(filePath)}&page=${page}&size=${pageSize}&filters=${filterParam}`
-      );
-      const result = await response.json();
-      
+      const result = await get("/get-page", {
+        path: filePath,
+        page,
+        size: pageSize,
+        filters: JSON.stringify(activeFilters),
+      });
+
       if (result.status === "ok") {
         setRows(result.items);
         setTotalRows(result.n_rows);
-      }else{
+      } else {
         setRows([]);
       }
     } catch (error) {
@@ -77,26 +95,22 @@ export const DataTable = ({
     }
   };
 
- // 1. Sincroniza el input visual
   useEffect(() => {
     setInputPage(page.toString());
   }, [page]);
 
-  // 2. Un solo efecto para manejar el cambio de archivo
   useEffect(() => {
     if (filePath) {
       setPage(1);
-      setFilters({}); // Limpiamos filtros al cambiar de archivo
-      // No llamamos a fetchPage aquí, porque el cambio de page/filters disparará el siguiente efecto
+      setFilters({});
     }
   }, [filePath]);
 
-  // 3. Efecto Maestro de Carga
   useEffect(() => {
     if (filePath) {
       fetchPage();
     }
-  }, [page, filePath, filters]); // Se lanza cuando cualquiera cambie
+  }, [page, filePath, filters]);
   
 
  return (
@@ -108,7 +122,7 @@ export const DataTable = ({
             <tr>
               {activeCols.map((col) => {
                 const role = roles[col] || "none";
-                const width = columnWidths[col] || 150; // Ancho inicial
+                const width = columnWidths[col] || 150;
                 const isFiltering = activeFilterCol == col;
                 return (
                   <th key={col} style={{ ...getHeaderStyle(role, width), position: 'relative' }}>
@@ -207,14 +221,14 @@ export const DataTable = ({
       <input 
         type="text"
         value={inputPage}
-        onChange={(e) => setInputPage(e.target.value.replace(/\D/g, ''))} // Solo números
+        onChange={(e) => setInputPage(e.target.value.replace(/\D/g, ''))}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             const p = parseInt(inputPage);
             if (p > 0 && p <= totalPages) {
               setPage(p);
             } else {
-              setInputPage(page.toString()); // Reset si pone una locura
+              setInputPage(page.toString());
             }
           }
         }}
@@ -238,10 +252,9 @@ export const DataTable = ({
   );
 };
 
-// --- ESTILOS CORREGIDOS (Adiós a los espacios feos) ---
 const tableStyle: React.CSSProperties = {
   width: "100%",
-  borderCollapse: "collapse", // CRUCIAL: Elimina el espacio entre celdas
+  borderCollapse: "collapse",
   tableLayout: "fixed",
 };
 
@@ -283,7 +296,6 @@ const getHeaderStyle = (role: string, width: number): React.CSSProperties => ({
     role === "feature" ? "#3b82f6" : role === "target" ? "#10b981" : "#333"
   }`,
   transition: "background-color 0.2s",
-  // Eliminamos cualquier borde lateral que cree espacios
   borderLeft: "none",
   borderRight: "none",
 });
@@ -328,7 +340,6 @@ const tdStyle: React.CSSProperties = {
   wordBreak: "break-all",
   verticalAlign: "top",
   lineHeight: "1.4",
-  // Opcional: un borde sutil a la derecha para separar columnas sin dejar huecos
   borderRight: "1px solid #222",
 };
 
@@ -353,12 +364,10 @@ const pageBtnStyle = (disabled: boolean): React.CSSProperties => ({
   transition: "all 0.2s"
 });
 
-// Mantén tus estilos anteriores (tableContainerStyle, getHeaderStyle, etc.)
-// SOLO asegúrate de que tableContainerStyle tenga:
 const tableContainerStyle: React.CSSProperties = {
   flexGrow: 1,
   overflow: "auto",
-  borderRadius: "8px 8px 0 0", // Redondeado solo arriba
+  borderRadius: "8px 8px 0 0",
   border: "1px solid #252525",
   backgroundColor: "#1a1a1a",
   position: "relative",
@@ -367,7 +376,7 @@ const tableContainerStyle: React.CSSProperties = {
 const filterBtnStyle = (active: boolean): React.CSSProperties => ({
   background: "none",
   border: "none",
-  color: active ? "#3b82f6" : "#555", // Azul si hay texto filtrado
+  color: active ? "#3b82f6" : "#555",
   cursor: "pointer",
   padding: "2px",
   display: "flex",

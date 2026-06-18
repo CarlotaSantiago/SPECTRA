@@ -1,17 +1,29 @@
+/**
+ * @file ViewScriptPage.tsx
+ * @description Cuarta etapa del pipeline. Muestra el editor de código 
+ * permitiendo auditar y modificar el código generado antes de su ejecución física.
+ */
+
 import { useLocation, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { ArrowLeft, Brain } from "lucide-react";
 import { useOllamaModels } from "../feature/hooks/useOllamaModels";
 import { LoadingOverlay } from "../feature/components/LoadingOverlay";
-import { useScriptDeployment } from "../feature/hooks/useScript"; // Asegúrate de apuntar al hook correcto
+import { useScriptDeployment } from "../feature/hooks/useScript";
 import { ScriptEditor } from "../feature/components/ScriptEditor";
 import { ArtifactsList } from "../feature/components/ArtifactsList";
+
+/**
+ * Renderiza un entorno de edición simple basado en texto para el script Python.
+ * Delegará la lógica asíncrona al hook `useScriptDeployment`.
+ */
 
 export const ViewScriptPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { resolveSelection } = useOllamaModels();
+  const {resolveSelection } = useOllamaModels();
+  const [selectedModel] = useState("");
   
-  // 1. Usamos tu hook personalizado para abstraer estados y fetch
   const { 
     scriptCode, 
     setScriptCode, 
@@ -20,10 +32,8 @@ export const ViewScriptPage = () => {
     deployScript 
   } = useScriptDeployment(state, resolveSelection);
 
-  const selectedModel = "llama3"; // Si decides implementar un picker, este valor vendría de un estado local.
   const artifactsList = state?.artifacts || [];
 
-  // 2. Control de errores basado en los datos procesados por el hook
   if (!dossier) {
     return (
       <div style={styles.errorStyle}>
@@ -35,7 +45,7 @@ export const ViewScriptPage = () => {
 
   return (
     <div style={styles.containerStyle}>
-      {loading && <LoadingOverlay message="Entrenando modelos..." />}
+      {(loading) && <LoadingOverlay message="Entrenando modelos..." />}
       
       {/* HEADER */}
       <div style={styles.headerStyle}>
@@ -44,7 +54,7 @@ export const ViewScriptPage = () => {
         </button>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button onClick={() => deployScript(selectedModel)} style={styles.deployBtnStyle}>
-            <Brain size={18} /> Iniciar Entrenamiento con Métricas
+            <Brain size={18} /> Iniciar Entrenamiento
           </button>
         </div>
       </div>
@@ -68,9 +78,6 @@ export const ViewScriptPage = () => {
   );
 };
 
-// =====================================================================
-// ESTILOS DE LA INTERFAZ (Limpios y agrupados)
-// =====================================================================
 const styles: Record<string, React.CSSProperties> = {
   containerStyle: { backgroundColor: "#121212", color: "white", height: "calc(100vh - 50px)", padding: "10px", boxSizing: "border-box", overflow: "hidden", fontFamily: "sans-serif", display: "flex", flexDirection: "column" },
   headerStyle: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" },

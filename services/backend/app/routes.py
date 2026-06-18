@@ -3,18 +3,15 @@ import io
 import json
 import logging
 import os
-import re
 import requests
 from pathlib import PurePosixPath, Path
 import numpy as np
 import pandas as pd
 import torch
 import json as py_json
-from fastapi import APIRouter, File, UploadFile, Form, HTTPException
+from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import JSONResponse
-from pandas.api.types import is_float_dtype, is_numeric_dtype, is_object_dtype, is_string_dtype
 from pydantic import BaseModel
-from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from sklearn.preprocessing import LabelEncoder
 from typing import Any, Dict, List
 from app.services.classify import classify_data, compute_information_gain, encode_series
@@ -132,7 +129,8 @@ async def handle_upload(
     Returns:
         Status and results of the upload and preprocessing.
     """
-    try: 
+    try:
+        print(file)
         data = read_dataset(file)
         
         n_rows = len(data)
@@ -401,8 +399,6 @@ def entreno(data: Dict[str, Any]):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         local_path = os.path.abspath(os.path.join(current_dir, "..", "model", "orchestation_script.py"))
         linux_path = "uploads/datos_limpios.xlsx"
-
-        print(f"Ruta formateada para Linux: {linux_path}")
         
         # 2. Guardar el archivo localmente
         with open(local_path, "w", encoding="utf-8") as f:
@@ -440,8 +436,9 @@ def entreno(data: Dict[str, Any]):
                 status_code=500
             )
 
+        print(structured_body)
         # 5. Enviamos al frontend el JSON estructurado con la clave 'targets' directamente
-        return JSONResponse(content=structured_body, status_code=200)
+        return JSONResponse(content=structured_body, status_code=response_status)
         
     except Exception as e:
         return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)

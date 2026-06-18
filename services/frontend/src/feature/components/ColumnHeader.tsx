@@ -33,7 +33,6 @@ export const ColumnHeader = ({ col, role, isBlindada, onCycleRole, onToggleBlind
   );
 };
 
-// Estilos internos (extraídos para limpiar el TSX)
 const headerBaseStyle: React.CSSProperties = {
   padding: "12px 10px", backgroundColor: "#2c2c2c", cursor: "pointer",
   transition: "all 0.2s ease", textAlign: "left", minWidth: "150px",

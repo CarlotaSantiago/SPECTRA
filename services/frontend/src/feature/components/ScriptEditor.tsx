@@ -1,12 +1,22 @@
-// feature/components/ScriptEditor.tsx
 import React from "react";
 import { Code } from "lucide-react";
 
+/**
+ * Propiedades del componente ScriptEditor.
+ */
 interface ScriptEditorProps {
+  /** El código fuente actual en Python */
   code: string;
+  /** Función que se ejecuta cuando el usuario edita el código */
   onChange: (newCode: string) => void;
 }
 
+/**
+ * Componente que renderiza un editor de código minimalista para modificar 
+ * el script de Machine Learning generado antes de su ejecución.
+ * 
+ * @param props - `code` (estado actual) y `onChange` (setter del estado).
+ */
 export const ScriptEditor: React.FC<ScriptEditorProps> = ({ code, onChange }) => (
   <div style={styles.codePanel}>
     <h3 style={styles.cardTitle}><Code size={16}/> Script de Entrenamiento Python</h3>

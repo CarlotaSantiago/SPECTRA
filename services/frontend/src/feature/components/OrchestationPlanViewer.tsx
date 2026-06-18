@@ -37,11 +37,11 @@ export const OrchestrationPlanViewer = ({ plan, onMoveItem }: PlanViewerProps) =
       {strategy === "GatedChain" && (
         <div style={{ borderLeft: '2px dashed #ff6b6b', paddingLeft: '10px', marginTop: '4px' }}>
           <div style={{ ...orderItemEditable, borderLeft: '3px solid #ff6b6b', backgroundColor: '#1a1212' }}>
-            <span style={{ color: '#ff6b6b' }}>🛑 Variable Condicional: <strong>{gating}</strong></span>
+            <span style={{ color: '#ff6b6b' }}>Variable Condicional: <strong>{gating}</strong></span>
           </div>
 
           <div style={{ fontSize: '11px', color: '#aaa', margin: '6px 0 4px 4px' }}>
-            👇 Dependientes directos (Si {gating} está presente):
+            Dependientes directos (Si {gating} está presente):
           </div>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px', paddingLeft: '4px' }}>
@@ -63,7 +63,6 @@ export const OrchestrationPlanViewer = ({ plan, onMoveItem }: PlanViewerProps) =
   );
 };
 
-// Estilos locales compartidos necesarios para el renderizado interno
 const orderItemEditable: React.CSSProperties = {
   display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", backgroundColor: "#121212", borderRadius: "6px", fontSize: "13px", color: "#ccc", borderLeft: "3px solid #648f8c", marginBottom: "4px"
 };

@@ -1,28 +1,37 @@
+/**
+ * @file ViewResultsPage.tsx
+ * @description Etapa final del pipeline (Dashboard).
+ * Lee los resultados crudos guardados por el script y los renderiza en KPIs visuales.
+ */
+
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Target, Percent, Cpu, Sliders, LayoutGrid, CheckCircle } from "lucide-react";
 
-// Colores dinámicos basados en la métrica real (cv_score) devuelta por el JSON
 const getScoreColors = (score: number) => {
-  if (score >= 0.95) return { color: "#a9dc76", bgColor: "rgba(169, 220, 118, 0.05)" }; // Verde
-  if (score >= 0.85) return { color: "#78a8a4", bgColor: "rgba(120, 168, 164, 0.05)" }; // Turquesa
-  return { color: "#ffda6a", bgColor: "rgba(255, 218, 106, 0.05)" }; // Amarillo/Ámbar
+  if (score >= 0.95) return { color: "#a9dc76", bgColor: "rgba(169, 220, 118, 0.05)" }; 
+  if (score >= 0.85) return { color: "#78a8a4", bgColor: "rgba(120, 168, 164, 0.05)" }; 
+  return { color: "#ffda6a", bgColor: "rgba(255, 218, 106, 0.05)" }; 
 };
 
+/**
+ * Página encargada de presentar las métricas del modelo entrenado.
+ */
 export const ViewResultsPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
 
-  // 1. Apuntamos a la estructura real de tu JSON del backend
   const targetsData = state?.toonData?.targets || {};
-  
-  // 2. Convertimos el objeto indexado de "targets" en un array dinámico iterable
+  console.log(targetsData);
+
   const trainingResults = Object.values(targetsData);
 
-  // 3. Métricas calculadas dinámicamente sobre tu JSON real
   const totalPhases = trainingResults.length;
   
   const avgScore = totalPhases > 0 
-    ? trainingResults.reduce((acc: number, curr: any) => acc + (curr.cv_score || 0), 0) / totalPhases 
+    ? trainingResults.reduce((acc: number, curr: any) => {
+        const score = curr.cv_score !== undefined ? parseFloat(curr.cv_score) : 0;
+        return acc + (isNaN(score) ? 0 : score);
+      }, 0) / totalPhases 
     : 0;
 
   if (totalPhases === 0) {
@@ -76,13 +85,16 @@ export const ViewResultsPage = () => {
             <div>
               <div style={styles.kpiLabelStyle}>Estrategia Optimización</div>
               <div style={{ fontSize: "16px", fontWeight: "bold", color: "#fff", marginTop: "4px" }}>
-                Métrica Base: {String(trainingResults[0]?.optimization_metric || "F1").toUpperCase()}
+                {/* SOLUCIÓN AL ERROR DE OPTIMIZATION METRIC */}
+                Métrica Base: {trainingResults[0]?.priority_metrics 
+                  ? String(trainingResults[0].priority_metrics).toUpperCase() 
+                  : "F1"}
               </div>
             </div>
           </div>
         </div>
 
-        <div style={{ margin: "10px 0 20px 0" }}>
+        <div style={{ margin: "20px 0 10px 0" }}>
           <h2 style={{ fontSize: "18px", fontWeight: "bold", color: "#fff", margin: 0 }}>Métricas Detalladas por Objetivo</h2>
           <p style={{ fontSize: "12px", color: "#666", margin: "4px 0 0 0" }}>Resultados leídos directamente del reporte persistido en backend</p>
         </div>
@@ -92,7 +104,6 @@ export const ViewResultsPage = () => {
           {trainingResults.map((targetItem: any, index: number) => {
             const { color, bgColor } = getScoreColors(targetItem.cv_score || 0);
             
-            // Extraemos hiperparámetros excluyendo el meta-campo "model_name" si existe
             const { model_name, ...hyperParams } = targetItem.best_params || {};
 
             return (
@@ -114,15 +125,13 @@ export const ViewResultsPage = () => {
                   </h3>
                 </div>
 
-                {/* CV Score */}
-               {/* Score Visual Destacado */}
-              <div style={styles.scoreBoxStyle}>
-                <span style={{ fontSize: "12px", color: "#888", fontWeight: "500" }}>Cross-Validation Score</span>
-                <span style={{ fontSize: "32px", fontWeight: "900", color: color, display: "flex", alignItems: "center", gap: "2px" }}>
-                  {/* Se removió el icono <Percent /> de aquí delante */}
-                  {((targetItem.cv_score || 0) * 100).toFixed(2)}%
-                </span>
-              </div>
+                {/* Score Visual Destacado */}
+                <div style={styles.scoreBoxStyle}>
+                  <span style={{ fontSize: "12px", color: "#888", fontWeight: "500" }}>Cross-Validation Score</span>
+                  <span style={{ fontSize: "32px", fontWeight: "900", color: color, display: "flex", alignItems: "center", gap: "2px" }}>
+                    {((targetItem.cv_score || 0) * 100).toFixed(2)}%
+                  </span>
+                </div>
 
                 {/* Algoritmo Ganador */}
                 <div style={styles.modelRowStyle}>
@@ -161,12 +170,11 @@ export const ViewResultsPage = () => {
   );
 };
 
-// Se mantienen los mismos estilos premium CSS-in-JS originales
 const styles: Record<string, React.CSSProperties> = {
-  containerStyle: { backgroundColor: "#0d0d0d", color: "white", height: "calc(100vh - 50px)", padding: "20px", boxSizing: "border-box", overflowY: "auto", fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
+  containerStyle: { backgroundColor: "#0d0d0d", color: "white", minHeight: "100vh", padding: "30px", boxSizing: "border-box", overflowY: "auto", fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
   headerStyle: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", borderBottom: "1px solid #1a1a1a", paddingBottom: "15px" },
   backBtnStyle: { background: "none", border: "none", color: "#648f8c", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", fontWeight: "500" },
-  contentStyle: { maxWidth: "1200px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "5px" },
+  contentStyle: { maxWidth: "1200px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }, // Regresado a 20px para mejor espaciado
   kpiRowStyle: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px", marginBottom: "10px" },
   kpiCardStyle: { backgroundColor: "#141414", border: "1px solid #222", borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" },
   kpiLabelStyle: { fontSize: "12px", color: "#666", fontWeight: "600", textTransform: "uppercase" },

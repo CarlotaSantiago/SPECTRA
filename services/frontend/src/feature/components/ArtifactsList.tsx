@@ -1,4 +1,3 @@
-// feature/components/ArtifactsList.tsx
 import React from "react";
 import { FileText, CheckCircle } from "lucide-react";
 

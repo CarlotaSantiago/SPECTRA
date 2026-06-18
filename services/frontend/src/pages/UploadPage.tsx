@@ -1,3 +1,10 @@
+/**
+ * @file UploadPage.tsx
+ * @description Vista inicial del pipeline (Stage 0).
+ * Permite al usuario seleccionar un archivo de dataset (CSV, Excel, Parquet) 
+ * y enviarlo al backend para su almacenamiento y conteo de columnas.
+ */
+
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useUpload } from "../feature/hooks/useUpload";
@@ -6,7 +13,13 @@ import { FileItem } from "../feature/components/FileItem";
 import { LoadingOverlay } from "../feature/components/LoadingOverlay"; 
 import { useDatasetStore } from "../store/useDatasetStore";
 
-const UploadPage = () => {
+/**
+ * Página principal que renderiza el área de Drag & Drop y gestiona la
+ * redirección automática hacia la etapa de configuración de columnas una 
+ * vez el backend valida la subida.
+ */
+
+export const UploadPage = () => {
   const navigate = useNavigate();
   const [isUploading, setIsUploading] = useState(false);
 
@@ -48,7 +61,6 @@ const UploadPage = () => {
     addFile([newFiles[0]]);
   };
 
-  // Estilos de la página
   const containerStyle: React.CSSProperties = {
     width: "100%",
     minHeight: "100vh",
@@ -75,7 +87,6 @@ const UploadPage = () => {
     transition: "background-color 0.2s",
   });
 
-  // Guardamos una variable bandera para mejorar legibilidad
   const hasFile = file && file.length > 0;
 
   return (

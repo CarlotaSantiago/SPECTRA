@@ -1,39 +1,48 @@
-// feature/hooks/useScriptDeployment.ts
+/**
+ * @file useScript.ts
+ * @description Hook complejo que gestiona el estado local del editor de código y el envío
+ * final del script para su ejecución o persistencia.
+ */
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { generateScript } from "../../adapter/dataAdapter";
+import { editScript } from "../../adapter/dataAdapter";
+import { initializeDossierConstraints } from "./useDefaultConstraints";
 
-export const useScriptDeployment = (state: any, resolveSelection: (model: string) => any) => {
+/**
+ * Hook para la vista del editor de código (ViewScriptPage).
+ * Gestiona la inicialización del código fuente, las restricciones y el despliegue final.
+ * 
+ * @param state - El estado inyectado a través de react-router-dom que contiene el `toonData`.
+ * @param resolveSelection - Función inyectada por `useOllamaModels` para mapear el display_name al ID real del modelo.
+ */
+export const useScriptDeployment = (
+  state: any,
+  resolveSelection: (model: string) => { model: string; provider?: string }
+) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
-  // Inicialización inteligente y perezosa del script
   const [scriptCode, setScriptCode] = useState<string>(() => {
     if (state?.script) return state.script;
     if (state?.toonData?.script) return state.toonData.script;
     if (state?.toonData?.data?.script) return state.toonData.data.script;
-    
-    return "import json\nimport os\nimport warnings\nfrom typing import Any, Dict, List, Optional, Tuple\n\nimport joblib\nimport numpy as np\nimport optuna\n";
+
+    return [
+      "import json",
+      "import os",
+      "import warnings",
+      "from typing import Any, Dict, List, Optional, Tuple",
+      "",
+      "import joblib",
+      "import numpy as np",
+      "import optuna",
+    ].join("\n");
   });
 
-  // Inicialización inteligente de restricciones
-  const [dossier] = useState<any>(() => {
-    const base = state?.toonData || null;
-    if (base && base.data && !base.data.user_constraints) {
-      base.data.user_constraints = {
-        cv_strategy: { type: "StratifiedKFold", folds: 1 },
-        feature_selection_threshold: 0.05,
-        allow_ensembles: true,
-        optimization_priority: ["Performance", "Interpretability"],
-        model_selection: {
-          mode: "AUTONOMOUS_COMPETITION",
-          libraries: ["scikit-learn", "xgboost", "lightgbm"]
-        },
-        tuning_strategy: { search_type: "Bayesian_Optimization", max_trials: 2, timeout: 60 }
-      };
-    }
-    return base;
-  });
+  const [dossier] = useState<any>(() =>
+    initializeDossierConstraints(state?.toonData || null)
+  );
 
   const deployScript = async (selectedModel: string) => {
     if (!selectedModel) {
@@ -42,40 +51,29 @@ export const useScriptDeployment = (state: any, resolveSelection: (model: string
     }
 
     setLoading(true);
-    const { provider } = resolveSelection(selectedModel);
-    
+    const { model, provider } = resolveSelection(selectedModel);
     const payload = {
-      script: scriptCode, 
+      script: scriptCode,
+      model,
       ...(provider && { provider }),
     };
 
     try {
-        const response = await generateScript(payload)
+      const result = await editScript(payload as any);
 
-      if (response.ok) {
-        const result = await response.json();
-        navigate("/results", { 
-          state: { 
-            scriptCode: result.script || result.data?.script,
-            toonData: result 
-          } 
-        });
-      } else {
-        throw new Error("Error en la respuesta del servidor");
-      }
+      navigate("/results", {
+        state: {
+          scriptCode: result.script || result.data?.script,
+          toonData: result,
+        },
+      });
     } catch (error) {
-      console.error(error);
+      console.error("Error en deployScript:", error);
       alert("No se pudo conectar con el servidor o procesar el entrenamiento.");
     } finally {
       setLoading(false);
     }
   };
 
-  return {
-    scriptCode,
-    setScriptCode,
-    dossier,
-    loading,
-    deployScript
-  };
+  return { scriptCode, setScriptCode, dossier, loading, deployScript };
 };
