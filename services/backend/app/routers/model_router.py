@@ -59,7 +59,13 @@ def get_llm_providers():
 def process_state_2(data: Dict[str, Any]):
     try:
         body, status_code = proxy_process_state2(data)
-        body["user_constraints"] = data["user_constraints"]
+        
+        # Propagamos el dossier o los constraints de vuelta al frontend para el state 3
+        dossier_data = data.get("dossier", {})
+        body["dossier"] = {
+            "data": dossier_data
+        }
+        
         return JSONResponse(content=body, status_code=status_code)
     except Exception as e:
         logger.error("process_state_2 proxy failed: %s", e)
@@ -72,13 +78,21 @@ def entreno(data: Dict[str, Any]):
         
         # 1. Rutas locales para guardar el script temporal
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        local_path = os.path.abspath(os.path.join(current_dir, "..", "model", "orchestation_script.py"))
+        # current_dir = .../services/backend/app/routers/
+        # Subimos 3 niveles: routers → app → backend, luego entramos a model/
+        # Esto coincide con el volumen montado en docker-compose: ./services/backend/model → /app/model
+        model_dir = os.path.abspath(os.path.join(current_dir, "..", "..", "model"))
+        local_path = os.path.join(model_dir, "orchestation_script.py")
         linux_path = "uploads/datos_limpios.xlsx"
 
+        # Crear directorio model/ si no existe
+        os.makedirs(model_dir, exist_ok=True)
+        logger.info("Model dir: %s", model_dir)
         
         # 2. Guardar el archivo localmente
         with open(local_path, "w", encoding="utf-8") as f:
             f.write(script)
+        logger.info("Script guardado en: %s", local_path)
 
         # payload estructurado para lanzar el proceso en el otro micro/contenedor
         payload_to_proxy = {
@@ -90,30 +104,38 @@ def entreno(data: Dict[str, Any]):
             }
         }  
         
-        # 3. Se ejecuta el entrenamiento (esto genera los logs en consola y el archivo en disco)
-        response_status = proxy_execute_script(payload_to_proxy)
+        # 3. Se ejecuta el entrenamiento
+        proxy_body, proxy_status = proxy_execute_script(payload_to_proxy)
+        logger.info("proxy_execute_script → status=%s body_keys=%s", proxy_status, list(proxy_body.keys()) if isinstance(proxy_body, dict) else proxy_body)
+
+        # Si el servicio de entrenamiento devolvió error, lo propagamos
+        if proxy_status not in (200, 201):
+            return JSONResponse(
+                content={"status": "error", "message": proxy_body.get("message", "Training service error"), "detail": proxy_body},
+                status_code=proxy_status
+            )
         
         # 4. LEER EL ARCHIVO JSON GENERADO POR EL ENTRENAMIENTO
-        # Apuntamos a la ruta donde tu script de Python guardó el JSON estructurado
-        metrics_file_path = os.path.abspath(os.path.join(current_dir, "..", "model", "metrics.json"))
+        metrics_file_path = os.path.join(model_dir, "metrics.json")
+        logger.info("Buscando metrics.json en: %s (existe=%s)", metrics_file_path, os.path.exists(metrics_file_path))
         
         # Inicializamos un body vacío por si algo falla
         structured_body = {"targets": {}}
         
         if os.path.exists(metrics_file_path):
             with open(metrics_file_path, "r", encoding="utf-8") as f:
-                structured_body = py_json.load(f)
-            print("¡Archivo de métricas estructurado cargado con éxito!")
+                structured_body = json.load(f)
+            logger.info("Métricas cargadas con éxito: %s targets", len(structured_body.get("targets", {})))
         else:
-            print(f"Advertencia: No se encontró el archivo de métricas en {metrics_file_path}")
-            # Si no existe, puedes devolver un error o construir una respuesta alternativa 
+            logger.warning("No se encontró metrics.json en %s", metrics_file_path)
             return JSONResponse(
                 content={"status": "error", "message": "El entrenamiento terminó pero no generó el reporte metrics.json"}, 
                 status_code=500
             )
 
-        # 5. Enviamos al frontend el JSON estructurado con la clave 'targets' directamente
+        # 5. Enviamos al frontend el JSON estructurado
         return JSONResponse(content=structured_body, status_code=200)
         
     except Exception as e:
+        logger.exception("Error en /send-script: %s", e)
         return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
