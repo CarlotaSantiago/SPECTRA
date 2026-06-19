@@ -1,4 +1,4 @@
-from venv import logger
+import logging
 import pandas as pd
 import numpy as np
 import torch
@@ -6,6 +6,8 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
 from pandas.api.types import is_numeric_dtype, is_float_dtype, is_object_dtype, is_string_dtype
 from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
 
 def classify_data(series: pd.Series, n_rows: int) -> Dict[str, Any]:
     nunique = series.nunique()

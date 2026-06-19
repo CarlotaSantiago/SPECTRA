@@ -8,11 +8,10 @@ def stratified_sample_100(
     """ 
     Muestrea exactamente `n` filas con estratificación proporcional. 
     Soporta uno o múltiples targets mediante columna combinada 
-temporal. 
+    temporal. 
     Usa Largest Remainder para garantizar que sum(asignaciones) == n 
-exacto. 
+    exacto. 
     """
-
 
     # 1. Columna de estratificación 
     if len(target_cols) == 1: 
@@ -31,7 +30,6 @@ exacto.
     exact_quotas = group_sizes / total_rows * n 
      
     # 3. Largest Remainder Method 
-    # 3. Largest Remainder Method 
     # Sustituimos .floor() por np.floor sobre los valores
     floor_quotas = np.floor(exact_quotas.values).astype(int)
     
@@ -48,11 +46,9 @@ exacto.
         for group in top_remainder_groups:
             floor_quotas.at[group] += 1 
      
-    # Garantía: cada grupo tiene al menos 1 fila 
+    # Garantía: cada grupo tiene al menos 1 fila (comentado en el original)
     #floor_quotas = floor_quotas.clip(lower=1)
     
-    # ... (Resto de la función igual)
-     
     # 4. Muestreo por grupo 
     sampled_parts = [] 
     for group_value, group_df in df.groupby(strata_col): 

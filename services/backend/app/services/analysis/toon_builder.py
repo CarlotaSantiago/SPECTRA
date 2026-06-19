@@ -1,4 +1,3 @@
-
 import re
 import json
 
@@ -103,9 +102,6 @@ def build_toon_payload(metadata, analysis_results, sample_df, features, target_m
         
     return toon_str
 
-
-import re
-import json
 
 def integrar_analisis_llm(json_tecnico, respuesta_llm):
     """

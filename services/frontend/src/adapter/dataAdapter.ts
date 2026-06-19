@@ -28,5 +28,5 @@ export const deployDossier = async (payload: GeneratePayload) => {
  * @returns Un objeto formato JSON donde indica las métricas finales de los modelos.
  */
 export const editScript = async (payload: GeneratePayload) => {
-  return post("/edit-script", payload);
+  return post("/send-script", payload);
 };

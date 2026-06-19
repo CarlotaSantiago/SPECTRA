@@ -46,10 +46,13 @@ export const useOllamaModels = () => {
 
         // 1. Procesamiento de modelos de Ollama (Locales / Drordas)
         for (const model of ollamaModels) {
-          selectionMap.set(model, { model });
           if (model.includes("ia.drordas.info")) {
+            // Modelo remoto Drordas: se envía sin provider para que Docker use su URL custom
+            selectionMap.set(model, { model });
             drordasModels.push(model);
           } else {
+            // Modelo local Ollama: se envía con provider explícito para que Docker use OllamaClient
+            selectionMap.set(model, { model, provider: "ollama" });
             localModels.push(model);
           }
         }

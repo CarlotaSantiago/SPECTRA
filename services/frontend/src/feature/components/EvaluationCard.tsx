@@ -26,6 +26,7 @@ export const EvaluationCard = ({
     if (!mappingStr || typeof mappingStr !== "string") return [];
     try {
       const cleanStr = mappingStr.replace(/[{}]/g, "");
+      if (!cleanStr) return [];
       return cleanStr.split(",").map(pair => {
         const [key, val] = pair.split(":").map(s => s.trim());
         return { key, val: parseInt(val) };
@@ -74,7 +75,7 @@ export const EvaluationCard = ({
                 <input
                   type="number"
                   value={item.val}
-                  onChange={(e) => onUpdateMapping(name, item.key, parseInt(e.target.value))}
+                  onChange={(e) => onUpdateMapping(name, item.key, Number.isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value))}
                   style={mappingInputStyle}
                 />
               </div>
