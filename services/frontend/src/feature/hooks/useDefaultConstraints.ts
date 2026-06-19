@@ -8,7 +8,7 @@ import type { UserConstraints } from "../../types";
 
 
 export const DEFAULT_USER_CONSTRAINTS: UserConstraints = {
-  cv_strategy: { type: "StratifiedKFold", folds: 1 },
+  cv_strategy: { type: "StratifiedKFold", folds: 10 },
   feature_selection_threshold: 0.05,
   allow_ensembles: true,
   optimization_priority: ["Performance", "Interpretability"],

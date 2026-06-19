@@ -22,7 +22,7 @@ export const ViewScriptPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
   const {resolveSelection } = useOllamaModels();
-  const [selectedModel] = useState("");
+  const [selectedModel] = useState("true");
   
   const { 
     scriptCode, 

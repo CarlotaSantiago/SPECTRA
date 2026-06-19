@@ -89,7 +89,8 @@ class AnalysisFacade:
 
         # 3. Guardar dataset limpio
         df_limpio = pd.DataFrame(columnas_limpias).assign(**{t: df[t] for t in data.targets if t in df.columns})
-        save_path = StorageService.save_dataset(df_limpio, "uploads/datos_limpios.xlsx")
+        save_path = "uploads/datos_limpios.xlsx"
+        StorageService.save_dataset(df_limpio, save_path)
         
         # 4. Generar payload para LLM
         sample_df = stratified_sample_100(df[columnas], data.targets)
