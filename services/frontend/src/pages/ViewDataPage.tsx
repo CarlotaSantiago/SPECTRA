@@ -140,6 +140,22 @@ export const ViewDataPage = () => {
     }));
   };
 
+  const handleUpdateConstraint = (category: string, field: string, value: any) => {
+    setDossier((prev: any) => ({
+      ...prev,
+      data: {
+        ...prev.data,
+        user_constraints: {
+          ...prev.data.user_constraints,
+          [category]: {
+            ...prev.data.user_constraints?.[category],
+            [field]: value
+          }
+        }
+      }
+    }));
+  };
+
   const moveOrderItem = (index: number, direction: 'up' | 'down') => {
     if (!dossier.data.orchestration_plan.order) return;
     const newOrder = [...dossier.data.orchestration_plan.order];
@@ -178,9 +194,9 @@ export const ViewDataPage = () => {
 
   return (
     <div style={containerStyle}>
-      {(loading || loadingModels) && <LoadingOverlay message={loadingModels ? "Cargando modelos de IA..." : "Generando script de entreno..."} />}
-      
-      <div style={headerStyle}>
+      {(loading || loadingModels) && <LoadingOverlay message={loadingModels ? "Cargando modelos de IA..." : "Generando script de entreno..."} />}        
+        
+        <div style={headerStyle}>
         <button onClick={() => navigate(-1)} style={backBtnStyle}><ArrowLeft size={18} /> Volver</button>
         <div style={{ display: 'flex', gap: '10px' }}>
           <ModelPicker 
@@ -197,7 +213,10 @@ export const ViewDataPage = () => {
       </div>
 
       <div style={contentLayout}>
+        {/* Sidebar Izquierda */}
         <div style={sidebarStyle}>
+          
+        <h2 style={sectionTitle}><Brain size={20}/> Análisis de Orquestación</h2>
           {/* Metadatos */}
           <section style={cardStyle}>
             <h3 style={cardTitle}><Activity size={16}/> Metadatos</h3>
@@ -227,7 +246,6 @@ export const ViewDataPage = () => {
               />
             </div>
           </section>
-
           {/* Matriz */}
           <section style={cardStyle}>
             <h3 style={cardTitle}><Activity size={16}/> Matriz de Dependencia</h3>
@@ -277,7 +295,7 @@ export const ViewDataPage = () => {
               />
             ))}
           </div>
-
+            
           <h2 style={sectionTitle}><Brain size={20}/> Análisis Semántico</h2>
           <div style={gridFeatures}>
             {Object.keys(dossier?.data?.categorical_evaluation || {}).map((key) => (
@@ -323,6 +341,78 @@ export const ViewDataPage = () => {
             </>
           )}
         </div>
+
+        {/* Sidebar Derecha */}
+        <div style={sidebarStyle}>
+          {/* Parámetros de Entrenamiento */}
+          <h2 style={sectionTitle}><Brain size={20}/> Métricas que se desean usar</h2>
+          <section style={cardStyle}>
+            <h3 style={cardTitle}><Brain size={16}/> Configuración de Entrenamiento</h3>
+            
+            <div style={{ marginBottom: "12px" }}>
+              <div style={infoRow}>
+                <span>CV Folds:</span>
+                <strong style={{color: '#648f8c'}}>{dossier?.data?.user_constraints?.cv_strategy?.folds || 5}</strong>
+              </div>
+              <input
+                type="range"
+                min={1}
+                max={20}
+                value={dossier?.data?.user_constraints?.cv_strategy?.folds || 10}
+                onChange={(e) => handleUpdateConstraint('cv_strategy', 'folds', parseInt(e.target.value))}
+                style={{ width: "100%", accentColor: "#648f8c" }}
+              />
+            </div>
+
+            <div style={{ marginBottom: "12px" }}>
+              <div style={infoRow}>
+                <span>Max Trials (Optuna):</span>
+                <strong style={{color: '#648f8c'}}>{dossier?.data?.user_constraints?.tuning_strategy?.max_trials || 50}</strong>
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={1000}
+                value={dossier?.data?.user_constraints?.tuning_strategy?.max_trials || 60}
+                onChange={(e) => handleUpdateConstraint('tuning_strategy', 'max_trials', parseInt(e.target.value) || 1)}
+                style={{ ...selectStyle, width: "100%", boxSizing: "border-box" }}
+              />
+            </div>
+
+            <div>
+              <div style={infoRow}>
+                <span>Timeout (Minutos):</span>
+                <strong style={{color: '#648f8c'}}>{dossier?.data?.user_constraints?.tuning_strategy?.timeout || 30}</strong>
+              </div>
+              <input
+                type="number"
+                min={0}
+                max={1440}
+                value={dossier?.data?.user_constraints?.tuning_strategy?.timeout || 30}
+                onChange={(e) => handleUpdateConstraint('tuning_strategy', 'timeout', parseInt(e.target.value) || 1)}
+                style={{ ...selectStyle, width: "100%", boxSizing: "border-box" }}
+              />
+            </div>
+          </section>
+          {/* CARD: Resumen de configuración */}
+                    <section style={cardStyle}>
+                      <h3 style={styles.cardTitleStyle}>
+                        <LayoutGrid size={16} /> Resumen de Ejecución
+                      </h3>
+                      <div style={styles.summaryRowStyle}>
+                        <span style={styles.labelStyle}>Folds CV:</span>
+                        <span style={styles.valueBadgeStyle}>{dossier?.data?.user_constraints?.cv_strategy?.folds || 5}</span>
+                      </div>
+                      <div style={styles.summaryRowStyle}>
+                        <span style={styles.labelStyle}>Max Trials:</span>
+                        <span style={styles.valueBadgeStyle}>{dossier?.data?.user_constraints?.tuning_strategy?.max_trials || 50}</span>
+                      </div>
+                      <div style={styles.summaryRowStyle}>
+                        <span style={styles.labelStyle}>Timeout:</span>
+                        <span style={styles.valueBadgeStyle}>{dossier?.data?.user_constraints?.tuning_strategy?.timeout || 30} min</span>
+                      </div>
+                    </section>
+        </div>
       </div>
     </div>
   );
@@ -330,13 +420,13 @@ export const ViewDataPage = () => {
 
 const containerStyle: React.CSSProperties = { backgroundColor: "#121212", color: "white", minHeight: "100vh", padding: "20px", fontFamily: "sans-serif" };
 const headerStyle: React.CSSProperties = { display: "flex", justifyContent: "space-between", marginBottom: "20px" };
-const contentLayout: React.CSSProperties = { display: "grid", gridTemplateColumns: "300px 1fr", gap: "20px" };
-const sidebarStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "20px" };
+const contentLayout: React.CSSProperties = { display: "grid", gridTemplateColumns: "300px 1fr 300px", gap: "20px", alignItems: "start" };
+const sidebarStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "20px", position: "sticky", top: "20px" };
 const mainPanelStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "15px" };
 const cardStyle: React.CSSProperties = { backgroundColor: "#1e1e1e", padding: "15px", borderRadius: "12px", border: "1px solid #333" };
 const cardTitle: React.CSSProperties = { color: "#648f8c", fontSize: "14px", marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px" };
 const sectionTitle: React.CSSProperties = { fontSize: "18px", color: "white", display: "flex", alignItems: "center", gap: "10px", marginTop: "10px" };
-const gridFeatures: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "15px" };
+const gridFeatures: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "15px" };
 const infoRow: React.CSSProperties = { display: "flex", justifyContent: "space-between", fontSize: "13px", color: "#aaa", marginBottom: "5px" };
 const backBtnStyle: React.CSSProperties = { background: "none", border: "none", color: "#648f8c", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" };
 const selectStyle: React.CSSProperties = { backgroundColor: "#121212", color: "white", border: "1px solid #333", borderRadius: "4px", padding: "2px 5px" };
@@ -352,4 +442,40 @@ const featureName: React.CSSProperties = { fontWeight: "bold", color: "#648f8c",
 const badge: React.CSSProperties = { backgroundColor: "#648f8c33", color: "#648f8c", padding: "4px 10px", borderRadius: "12px", fontSize: "12px" };
 const deployBtnStyle: React.CSSProperties = { backgroundColor: "#648f8c", color: "white", border: "none", padding: "10px 20px", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", fontWeight: "bold", boxShadow: "0 4px 14px 0 rgba(100, 143, 140, 0.39)" };
 
+const styles: Record<string, React.CSSProperties> = {
+summaryRowStyle: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: "8px",
+  },
+  valueBadgeStyle: {
+    backgroundColor: "#1a3330",
+    color: "#648f8c",
+    borderRadius: "6px",
+    padding: "2px 10px",
+    fontSize: "13px",
+    fontWeight: "bold",
+    border: "1px solid #648f8c",
+  },
+  cardTitleStyle: {
+    color: "#648f8c",
+    fontSize: "13px",
+    marginTop: 0,
+    marginBottom: "12px",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+  },
+  labelStyle: {
+    display: "block",
+    fontSize: "11px",
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.5px",
+    color: "#648f8c",
+    fontWeight: "bold",
+    marginBottom: "4px",
+    marginTop: "8px",
+  },
+};
 export default ViewDataPage;

@@ -49,7 +49,6 @@ export const DataConfigPage = () => {
   const [blindadas, setBlindadas] = useState<Record<string, boolean>>({});
 
   const { runAnalysis, loading } = useAnalysis((toonData) => {
-    console.log("Resultados Etapa 1:", toonData);
     navigate("/view-data", { state: { toonData } });
   });
 

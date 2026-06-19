@@ -45,10 +45,6 @@ export const useScriptDeployment = (
   );
 
   const deployScript = async (selectedModel: string) => {
-    if (!selectedModel) {
-      alert("Por favor, selecciona un modelo antes de continuar.");
-      return;
-    }
 
     setLoading(true);
     const { model, provider } = resolveSelection(selectedModel);

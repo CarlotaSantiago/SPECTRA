@@ -16,6 +16,7 @@ import type { GeneratePayload } from "../types";
  * @returns Una promesa que resuelve al objeto que contiene el código fuente puro del script.
  */
 export const deployDossier = async (payload: GeneratePayload) => {
+  console.log("Process State 2",payload)
   return post("/process-state2", payload);
 };
 
@@ -28,5 +29,6 @@ export const deployDossier = async (payload: GeneratePayload) => {
  * @returns Un objeto formato JSON donde indica las métricas finales de los modelos.
  */
 export const editScript = async (payload: GeneratePayload) => {
+  console.log("Entrenar modelos", payload)
   return post("/send-script", payload);
 };

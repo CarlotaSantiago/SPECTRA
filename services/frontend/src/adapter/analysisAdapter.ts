@@ -15,6 +15,7 @@ import type { ManifestPayload } from "../types";
  * @returns Promesa que resuelve al Dossier completo con la evaluación generada.
  */
 export const processState1 = (manifest: ManifestPayload) => {
+  console.log("Process State 1:", manifest);
   return post("/process-state1", manifest);
 };
 

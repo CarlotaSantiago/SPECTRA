@@ -5,7 +5,7 @@
  */
 
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, Target, Percent, Cpu, Sliders, LayoutGrid, CheckCircle } from "lucide-react";
+import { ArrowLeft, Target, Cpu, Sliders, LayoutGrid, CheckCircle } from "lucide-react";
 
 const getScoreColors = (score: number) => {
   if (score >= 0.95) return { color: "#a9dc76", bgColor: "rgba(169, 220, 118, 0.05)" }; 
@@ -86,8 +86,8 @@ export const ViewResultsPage = () => {
               <div style={styles.kpiLabelStyle}>Estrategia Optimización</div>
               <div style={{ fontSize: "16px", fontWeight: "bold", color: "#fff", marginTop: "4px" }}>
                 {/* SOLUCIÓN AL ERROR DE OPTIMIZATION METRIC */}
-                Métrica Base: {trainingResults[0]?.priority_metrics 
-                  ? String(trainingResults[0].priority_metrics).toUpperCase() 
+                Métrica Base: {(trainingResults[0] as any)?.priority_metrics 
+                  ? String((trainingResults[0] as any).priority_metrics).toUpperCase() 
                   : "F1"}
               </div>
             </div>
