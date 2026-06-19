@@ -40,9 +40,20 @@ export const useScriptDeployment = (
     ].join("\n");
   });
 
-  const [dossier] = useState<any>(() =>
-    initializeDossierConstraints(state?.toonData || null)
-  );
+  const [dossier] = useState<any>(() => {
+    // Si viene anidado desde model_router (body["dossier"]["data"])
+    const nestedData = state?.toonData?.dossier?.data;
+    // O si ya está en la raíz
+    const baseData = state?.toonData?.data ? state.toonData : state?.toonData;
+    const target = nestedData || baseData || null;
+    
+    // Lo envolvemos en un objeto "data" si no lo tiene, o devolvemos la estructura inicializada
+    const initialized = initializeDossierConstraints(target);
+    // ViewScriptPage espera leer dossier?.user_constraints o dossier?.data?.user_constraints
+    // Vamos a asegurar que devolvemos el objeto que contiene user_constraints directamente, 
+    // o el objeto data si está anidado.
+    return initialized?.data || initialized;
+  });
 
   const deployScript = async (selectedModel: string) => {
 

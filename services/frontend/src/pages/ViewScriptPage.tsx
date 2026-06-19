@@ -56,6 +56,7 @@ export const ViewScriptPage = () => {
       </div>
     );
   }
+  console.log(dossier)
 
   return (
     <div style={styles.containerStyle}>
@@ -89,7 +90,7 @@ export const ViewScriptPage = () => {
               <Activity size={16} /> Validación Cruzada (CV)
             </h3>
             <label style={styles.labelStyle}>
-              Número de Folds: <strong>{dossier?.data?.user_constraints?.cv_strategy?.folds || 5}</strong>
+              Número de Folds: <strong>{dossier?.user_constraints?.cv_strategy?.folds}</strong>
             </label>
           </section>
           {/* CARD: Optimización de Hiperparámetros */}
@@ -100,11 +101,11 @@ export const ViewScriptPage = () => {
             <div style={styles.twoColGridStyle}>
               <div>
                 <label style={styles.labelStyle}>Máx. Trials:</label>
-                <div style={styles.valueBadgeStyle}>{dossier?.data?.user_constraints?.tuning_strategy?.max_trials || 50}</div>
+                <div style={styles.valueBadgeStyle}>{dossier?.user_constraints?.tuning_strategy?.max_trials || 50}</div>
               </div>
               <div>
                 <label style={styles.labelStyle}>Timeout (min):</label>
-                <div style={styles.valueBadgeStyle}>{dossier?.data?.user_constraints?.tuning_strategy?.timeout || 30}</div>
+                <div style={styles.valueBadgeStyle}>{dossier?.user_constraints?.tuning_strategy?.timeout || 30}</div>
               </div>
             </div>
           </section>
@@ -115,15 +116,15 @@ export const ViewScriptPage = () => {
             </h3>
             <div style={styles.summaryRowStyle}>
               <span style={styles.labelStyle}>Folds CV:</span>
-              <span style={styles.valueBadgeStyle}>{dossier?.data?.user_constraints?.cv_strategy?.folds || 5}</span>
+              <span style={styles.valueBadgeStyle}>{dossier?.user_constraints?.cv_strategy?.folds || 5}</span>
             </div>
             <div style={styles.summaryRowStyle}>
               <span style={styles.labelStyle}>Max Trials:</span>
-              <span style={styles.valueBadgeStyle}>{dossier?.data?.user_constraints?.tuning_strategy?.max_trials || 50}</span>
+              <span style={styles.valueBadgeStyle}>{dossier?.user_constraints?.tuning_strategy?.max_trials || 50}</span>
             </div>
             <div style={styles.summaryRowStyle}>
               <span style={styles.labelStyle}>Timeout:</span>
-              <span style={styles.valueBadgeStyle}>{dossier?.data?.user_constraints?.tuning_strategy?.timeout || 30} min</span>
+              <span style={styles.valueBadgeStyle}>{dossier?.user_constraints?.tuning_strategy?.timeout || 30} min</span>
             </div>
           </section>
         </aside>
@@ -252,39 +253,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: "bold",
     border: "1px solid #648f8c",
   },
-  errorStyle: {
-    backgroundColor: "#121212",
-    color: "white",
-    minHeight: "100vh",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "20px",
-  },
-  deployBtnStyle: {
-    backgroundColor: "#648f8c",
-    border: "none",
-    color: "white",
-    padding: "8px 16px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontSize: "14px",
-    fontWeight: "bold",
-  },
-  backBtnStyle: {
-    background: "none",
-    border: "none",
-    color: "#648f8c",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    fontSize: "14px",
-  },
-  };
+  errorStyle: { backgroundColor: "#121212", color: "white", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "20px",},
+  deployBtnStyle: { backgroundColor: "#648f8c", border: "none", color: "white", padding: "8px 16px", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", fontWeight: "bold",},
+  backBtnStyle: { background: "none", border: "none", color: "#648f8c", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", fontSize: "14px",},
+};
 
 export default ViewScriptPage;
