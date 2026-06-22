@@ -1,7 +1,23 @@
+"""
+Módulo de construcción de payloads y procesamiento de respuestas de LLMs.
+
+Permite estructurar y serializar metadatos técnicos, muestras representativas 
+y análisis de variables en formatos optimizados para su consumo por LLMs (tanto en texto 
+plano como en JSON). Además, integra las predicciones semánticas devueltas por el modelo 
+de vuelta en las estructuras de datos originales.
+"""
+
 import re
 import json
 
 def build_toon_s2(metadata, type_correlation, max_dependency, dependency, target_meta, data):
+    """
+    Construye un prompt de configuración estructurado en formato de texto plano (TOON S2).
+    
+    Genera un archivo estructurado con directivas de configuración claras sobre el dataset, 
+    restricciones de la interfaz de usuario, estrategias de validación cruzada, dossiers de objetivos 
+    y pautas para la selección y optimización del modelo final.
+    """
     toon_str = "#LOCATION DATAFRAME\n"
     toon_str += f"path: {data['path']}\n"
     toon_str += f"extension_file: {data['extension']}\n\n"
@@ -23,7 +39,6 @@ def build_toon_s2(metadata, type_correlation, max_dependency, dependency, target
         toon_str += f"- dependency: {info['dependency']}\n\t"
         toon_str += f"- priority_metrics: {info['priority_metrics']}\n\n\t"
 
-    
     toon_str += "# MODEL_SELECTION_GUIDELINES\n"
     toon_str += f"mode: {metadata['user_constraints']['model_selection']['mode']}\n"
     toon_str += f"libraries: {metadata['user_constraints']['model_selection']['libraries']}\n\n"
@@ -38,6 +53,13 @@ def build_toon_s2(metadata, type_correlation, max_dependency, dependency, target
     return toon_str
 
 def build_toon_payload(metadata, analysis_results, sample_df, features, target_meta):
+    """
+    Construye y exporta los payloads de análisis del dataset tanto en formato de texto como JSON.
+    
+    Genera un prompt con marcas Markdown (incluyendo tablas `.to_markdown()`) que facilita la 
+    comprensión estructural de los datos por parte de la IA, aislando únicamente las variables 
+    de bajo nivel técnico (niveles 1 y 2) que requieren de clasificación semántica o contextual.
+    """
     # 1. Metadatos Globales
     toon_str = "# GLOBAL_METADATA\n"
     toon_str += f"total_rows: {metadata['n_rows']}\n"
@@ -105,8 +127,11 @@ def build_toon_payload(metadata, analysis_results, sample_df, features, target_m
 
 def integrar_analisis_llm(json_tecnico, respuesta_llm):
     """
-    Extrae subclass, mapping y reasoning inyectándolos en las secciones 
-    correspondientes (features y targets) del JSON técnico.
+    Extrae, limpia e inyecta la inferencia semántica del LLM en el diccionario técnico.
+    
+    Utiliza expresiones regulares estructuradas para capturar bloques de texto que contengan 
+    los campos 'subclass', 'mapping' y 'reasoning' generados por el modelo, actualizando 
+    dinámicamente las ramas correspondientes de características o variables objetivo.
     """
     
     # 1. Patrón mejorado para capturar bloques de cualquier tipo (feature o target)

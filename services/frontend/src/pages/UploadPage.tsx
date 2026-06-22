@@ -63,7 +63,7 @@ export const UploadPage = () => {
 
   const containerStyle: React.CSSProperties = {
     width: "100%",
-    minHeight: "100vh",
+    minHeight: "calc(100vh - 50px)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",

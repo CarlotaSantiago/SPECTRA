@@ -1,3 +1,11 @@
+"""
+Módulo base e interfaz abstracta para clientes de Modelos de Lenguaje (LLM).
+
+Define el contrato estructural (Strategy Pattern) para todas las conexiones e interacciones 
+con las APIs de inferencia y proporciona una implementación genérica HTTP asíncrona para 
+el consumo del endpoint de chat estructurado de Ollama.
+"""
+
 from abc import ABC, abstractmethod
 import httpx
 import logging
@@ -12,11 +20,16 @@ class ILLMClient(ABC):
     """
     @abstractmethod
     async def generate(self, model_name: str, system_prompt: str, user_prompt: str, options: Optional[Dict[str, Any]] = None) -> str:
+        """Contrato asíncrono obligatorio para la ejecución y retorno de inferencias del LLM."""
         pass
 
 class BaseOllamaClient(ILLMClient):
     """
     Implementación base común para los clientes de Ollama.
+    
+    Gestiona el ciclo de vida de las solicitudes de red mediante peticiones POST no bloqueantes, 
+    el empaquetado seguro de los roles del sistema y usuario, y el control de hiperparámetros 
+    críticos como la temperatura, muestreo probabilístico (*top_p*) y longitud de respuesta.
     """
     def __init__(self, base_url: str):
         self.base_url = base_url

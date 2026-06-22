@@ -200,7 +200,10 @@ export const ViewDataPage = () => {
         <button onClick={() => navigate(-1)} style={backBtnStyle}><ArrowLeft size={18} /> Volver</button>
         <div style={{ display: 'flex', gap: '10px' }}>
           <ModelPicker 
-            allModels={ollamaModels}
+            allModels={ollamaModels.filter(m => {
+              const lower = m.toLowerCase();
+              return lower.includes("coder") || lower.includes("mistral") || lower.includes("cursor");
+            })}
             selectedModel={selectedModel}
             isOpen={showModelPicker}
             onToggleOpen={() => setShowModelPicker(!showModelPicker)}
@@ -373,8 +376,8 @@ export const ViewDataPage = () => {
                 type="number"
                 min={1}
                 max={1000}
-                value={dossier?.data?.user_constraints?.tuning_strategy?.max_trials || 60}
-                onChange={(e) => handleUpdateConstraint('tuning_strategy', 'max_trials', parseInt(e.target.value) || 1)}
+                value={dossier?.data?.user_constraints?.tuning_strategy?.max_trials ?? 50}
+                onChange={(e) => handleUpdateConstraint('tuning_strategy', 'max_trials', e.target.value === '' ? '' : parseInt(e.target.value))}
                 style={{ ...selectStyle, width: "100%", boxSizing: "border-box" }}
               />
             </div>
@@ -388,8 +391,8 @@ export const ViewDataPage = () => {
                 type="number"
                 min={0}
                 max={1440}
-                value={dossier?.data?.user_constraints?.tuning_strategy?.timeout || 30}
-                onChange={(e) => handleUpdateConstraint('tuning_strategy', 'timeout', parseInt(e.target.value) || 1)}
+                value={dossier?.data?.user_constraints?.tuning_strategy?.timeout ?? 30}
+                onChange={(e) => handleUpdateConstraint('tuning_strategy', 'timeout', e.target.value === '' ? '' : parseInt(e.target.value))}
                 style={{ ...selectStyle, width: "100%", boxSizing: "border-box" }}
               />
             </div>
@@ -418,7 +421,7 @@ export const ViewDataPage = () => {
   );
 };
 
-const containerStyle: React.CSSProperties = { backgroundColor: "#121212", color: "white", minHeight: "100vh", padding: "20px", fontFamily: "sans-serif" };
+const containerStyle: React.CSSProperties = { backgroundColor: "#121212", color: "white", minHeight: "100vh", padding: "20px", fontFamily: "sans-serif", overflowX: "auto" };
 const headerStyle: React.CSSProperties = { display: "flex", justifyContent: "space-between", marginBottom: "20px" };
 const contentLayout: React.CSSProperties = { display: "grid", gridTemplateColumns: "300px 1fr 300px", gap: "20px", alignItems: "start" };
 const sidebarStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "20px", position: "sticky", top: "20px" };

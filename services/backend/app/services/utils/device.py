@@ -1,3 +1,11 @@
+"""
+Módulo de detección autónoma y gestión de dispositivos de cómputo en PyTorch.
+
+Permite identificar dinámicamente el mejor backend de hardware disponible (CUDA, MPS o CPU) 
+para la ejecución de modelos de aprendizaje profundo, aplicando restricciones basadas en la 
+disponibilidad de memoria de video (VRAM) libre con el fin de mitigar errores de Out Of Memory (OOM).
+"""
+
 import torch
 # =============================================================================
 # DEVICE DETECTION

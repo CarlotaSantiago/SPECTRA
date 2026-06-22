@@ -1,3 +1,11 @@
+"""
+Módulo de clasificación de variables y cálculo de ganancia de información.
+
+Permite analizar series de pandas para determinar su tipo técnico (binario, continuo, 
+categorical, etc.) y calcular la ganancia de información (mutual information) de las 
+características respecto a múltiples variables objetivo utilizando scikit-learn.
+"""
+
 import logging
 import pandas as pd
 import numpy as np
@@ -7,9 +15,17 @@ from sklearn.feature_selection import mutual_info_classif, mutual_info_regressio
 from pandas.api.types import is_numeric_dtype, is_float_dtype, is_object_dtype, is_string_dtype
 from typing import Dict, Any
 
+# Configuración del logger para registrar advertencias o errores de cómputo
 logger = logging.getLogger(__name__)
 
 def classify_data(series: pd.Series, n_rows: int) -> Dict[str, Any]:
+    """
+    Clasifica una serie de pandas según su tipo de datos y cardinalidad.
+    
+    Analiza la proporción de valores únicos para asignar un nivel técnico 
+    y una subclase (binary, continuous, discrete, categorical, high cardinality), 
+    lo cual facilita la selección del algoritmo de ganancia de información adecuado.
+    """
     nunique = series.nunique()
     ratio = nunique / n_rows
 
@@ -34,6 +50,12 @@ def classify_data(series: pd.Series, n_rows: int) -> Dict[str, Any]:
     return result
 
 def encode_series(series: pd.Series) -> pd.Series:
+    """
+    Codifica variables categóricas o de texto a valores numéricos.
+    
+    Aplica LabelEncoder si la serie es de tipo objeto o string para que 
+    pueda ser procesada correctamente por las funciones de scikit-learn.
+    """
     if is_object_dtype(series) or is_string_dtype(series):
         return pd.Series(LabelEncoder().fit_transform(series.astype(str)), index=series.index)
     return series
@@ -46,6 +68,12 @@ def compute_information_gain_targets(
         is_discrete: bool,
         device: torch.device
     ) -> float:
+    """
+    Calcula la ganancia de información mutua entre dos variables objetivo específicas.
+    
+    Determina si la relación se evalúa mediante clasificación o regresión basándose 
+    en el nivel técnico de la variable dependiente y maneja posibles excepciones en el cálculo.
+    """
     temp_df = df[[target1, target2]].dropna()
     if temp_df.empty:
         return 0.0
@@ -53,7 +81,7 @@ def compute_information_gain_targets(
     try:
         X = encode_series(temp_df[target1]).values.reshape(-1, 1)
         y = encode_series(temp_df[target2])
-        if col_types[target2] in [1,2]:
+        if col_types[target2] in [1, 2]:
             score = mutual_info_classif(X, y, discrete_features=[is_discrete])[0]
         else:
             score = mutual_info_regression(X, y, discrete_features=[is_discrete])[0]
@@ -73,7 +101,13 @@ def compute_information_gain(
     is_discrete: bool,
     device: torch.device
 ) -> Dict[str, float]:
-
+    """
+    Calcula la ganancia de información de una característica frente a una lista de objetivos.
+    
+    Itera sobre los distintos targets provistos, codifica dinámicamente las variables 
+    y selecciona el estimador de información mutua (clasificación/regresión) adecuado 
+    según los metadatos de cada target.
+    """
     scores = {}
 
     for t in targets:
@@ -90,7 +124,7 @@ def compute_information_gain(
             X[feature] = encode_series(X[feature])
             y = encode_series(y)
 
-            if target_meta[t]['technical_level'] in [1,2]:
+            if target_meta[t]['technical_level'] in [1, 2]:
                 score = mutual_info_classif(X, y, discrete_features=is_discrete)[0]
             else:
                 score = mutual_info_regression(X, y, discrete_features=is_discrete)[0]

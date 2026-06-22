@@ -1,3 +1,11 @@
+"""
+Módulo de fachada para la orquestación del análisis de datos y clasificación semántica.
+
+Centraliza y coordina el flujo completo de procesamiento de un dataset: desde la carga segura,
+la clasificación técnica y el cálculo de ganancia de información, hasta la generación de muestreos,
+la consulta con un LLM (Ollama) para clasificación semántica y la estructuración del plan de orquestación.
+"""
+
 import os
 import json
 import logging
@@ -25,6 +33,13 @@ class AnalysisFacade:
     
     @staticmethod
     async def process_dataset(data: ManifestSchema) -> Dict[str, Any]:
+        """
+        Ejecuta el pipeline integral de análisis técnico y enriquecimiento por LLM.
+        
+        Coordina de manera asíncrona la limpieza de características, el cálculo de métricas de 
+        ganancia de información, la inferencia de estructuras nominales/ordinales mediante prompts, 
+        y la construcción final de la matriz de dependencia y el plan de orquestación del modelo.
+        """
         device = get_device()
         logger.info(f"TRABAJANDO CON: {device}")
 

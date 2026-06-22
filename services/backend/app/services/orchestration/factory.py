@@ -1,3 +1,12 @@
+"""
+Módulo de factoría para la selección y construcción de estrategias de orquestación.
+
+Implementa un patrón Factory que analiza las dependencias estadísticas y estructurales 
+entre múltiples variables objetivo (targets) para instanciar la estrategia de modelado óptima: 
+cadenas condicionales (Gated), independientes (MultiOutput), regresión lineal múltiple en cadena, 
+clasificación multietiqueta en cadena o enfoques híbridos.
+"""
+
 import pandas as pd
 from typing import Any
 
@@ -13,6 +22,11 @@ from .strategies.hybrid import HybridChainStrategy
 def build_chain_strategy(df: pd.DataFrame, matrix: pd.DataFrame, tipos: dict, threshold_cfg: Any, toon_dossier: dict) -> OrchestrationStrategy:
     """
     Factory que evalúa las dependencias y retorna la estrategia de orquestación adecuada.
+    
+    Evalúa dinámicamente si el problema presenta ausencias estructurales (datos faltantes no aleatorios), 
+    si las variables objetivo superan los umbrales de dependencia estadística mutua para justificar 
+    un encadenamiento secuencial, y segmenta el flujo según la naturaleza técnica (categórica, 
+    numérica o mixta) de los objetivos.
     """
     targets = matrix.index.tolist()
     threshold = compute_threshold(matrix, threshold_cfg)
@@ -51,9 +65,9 @@ def build_chain_strategy(df: pd.DataFrame, matrix: pd.DataFrame, tipos: dict, th
         semantic = toon_dossier.get('semantic_classification', {})
         target_profiles = {
             t: {
-                'subclass':  semantic.get(t, {}).get('subclass', 'NOMINAL'),         
+                'subclass':   semantic.get(t, {}).get('subclass', 'NOMINAL'),         
                 'n_classes': int(df[t].nunique()),
-                'mapping':   semantic.get(t, {}).get('mapping', None)         
+                'mapping':    semantic.get(t, {}).get('mapping', None)         
             }
             for t in order
         }

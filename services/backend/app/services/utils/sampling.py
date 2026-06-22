@@ -1,3 +1,11 @@
+"""
+Módulo de muestreo estratificado y asignación exacta de cuotas.
+
+Permite extraer muestras representativas de un DataFrame garantizando que el tamaño de la muestra 
+sea exactamente el requerido ($n$). Implementa un mecanismo para unificar múltiples variables objetivo 
+en estratos combinados y utiliza el método del residuo mayor para distribuir los decimales remanentes.
+"""
+
 import pandas as pd
 import numpy as np
  
@@ -7,10 +15,11 @@ def stratified_sample_100(
         n: int = 100) -> pd.DataFrame:
     """ 
     Muestrea exactamente `n` filas con estratificación proporcional. 
-    Soporta uno o múltiples targets mediante columna combinada 
-    temporal. 
-    Usa Largest Remainder para garantizar que sum(asignaciones) == n 
-    exacto. 
+    
+    Soporta uno o múltiples targets mediante una columna combinada temporal. 
+    Aplica el algoritmo del residuo mayor (Largest Remainder Method) para corregir el déficit 
+    por redondeo truncado, asegurando de forma determinista que la suma de las muestras grupales 
+    iguale exactamente al valor $n$ solicitado sin desvirtuar la proporcionalidad.
     """
 
     # 1. Columna de estratificación 

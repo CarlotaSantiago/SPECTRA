@@ -1,9 +1,18 @@
+"""
+Módulo de gestión de almacenamiento seguro.
+
+Permite leer y guardar DataFrames en disco, controlando
+vulnerabilidades tipo path traversal e ingiriendo archivos subidos
+por los endpoints de FastAPI.
+"""
+
 import io
 import os
 import re
-import pandas as pd
 from typing import Union
 from pathlib import Path
+
+import pandas as pd
 from fastapi import UploadFile, HTTPException
 
 # Rutas base para almacenamiento
@@ -27,18 +36,26 @@ def secure_filename(filename: str) -> str:
     return filename
 
 class StorageService:
+    """
+    Clase que encapsula los métodos estáticos para la manipulación
+    y persistencia de archivos del sistema.
+    """
+
     @staticmethod
     def read_dataset(target: Union[str, UploadFile]) -> pd.DataFrame:
         """
-        Lee un dataset de forma dinámica. 
+        Lee un dataset de forma dinámica.
         Soporta strings (rutas en disco) u objetos UploadFile de FastAPI.
         """
         if isinstance(target, str):
             # Seguridad: Verificar que la ruta resuelta está dentro del directorio permitido
             try:
-                target_path = Path(target).resolve()
-                if not (target_path.is_relative_to(UPLOADS_DIR) or target_path.is_relative_to(MODEL_DIR) or target_path.is_relative_to(BASE_DIR)):
-                    raise HTTPException(status_code=403, detail="Acceso denegado a la ruta especificada.")
+                t_path = Path(target).resolve()
+                is_valid_dir = (t_path.is_relative_to(UPLOADS_DIR) or
+                                t_path.is_relative_to(MODEL_DIR) or
+                                t_path.is_relative_to(BASE_DIR))
+                if not is_valid_dir:
+                    raise HTTPException(status_code=403, detail="Acceso denegado a la ruta.")
             except AttributeError:
                 pass # Fallback
 
@@ -50,15 +67,14 @@ class StorageService:
             source = io.BytesIO(target.file.read())
         else:
             raise ValueError("El formato del objeto provisto no es mapeable a un dataset")
-        
+
         if filename.endswith(('.xlsx', '.xls')):
             return pd.read_excel(source)
-        elif filename.endswith('.csv'):
+        if filename.endswith('.csv'):
             return pd.read_csv(source)
-        elif filename.endswith('.parquet'):
+        if filename.endswith('.parquet'):
             return pd.read_parquet(source)
-        else:
-            raise ValueError(f"Formato de archivo no soportado: {filename}")
+        raise ValueError(f"Formato de archivo no soportado: {filename}")
 
     @staticmethod
     def save_dataset(data: pd.DataFrame, path: Union[str, Path]) -> str:
@@ -69,13 +85,13 @@ class StorageService:
         path_obj = Path(path)
         safe_name = secure_filename(path_obj.name)
         safe_dir = path_obj.parent
-        
+
         # Aseguramos que se guarde en UPLOADS_DIR si no se especifica directorio o es relativo
         if str(safe_dir) == '.' or not safe_dir.is_absolute():
-             safe_path_str = str(UPLOADS_DIR / safe_name)
+            safe_path_str = str(UPLOADS_DIR / safe_name)
         else:
-             safe_path_str = str(safe_dir / safe_name)
-             
+            safe_path_str = str(safe_dir / safe_name)
+
         if safe_path_str.endswith(('.xlsx', '.xls')):
             data.to_excel(safe_path_str, index=False)
         elif safe_path_str.endswith('.csv'):

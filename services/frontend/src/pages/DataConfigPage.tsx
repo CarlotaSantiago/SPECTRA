@@ -136,7 +136,7 @@ export const DataConfigPage = () => {
           {/* --- SELECTOR DE MODELO --- */}
           <div style={{ display: 'flex', gap: '10px' }}>
           <ModelPicker 
-            allModels={ollamaModels}
+            allModels={ollamaModels.filter(m => !m.toLowerCase().includes("coder"))}
             selectedModel={selectedModel}
             isOpen={showModelPicker} // Necesitas un nuevo useState [showModelPicker, setShowModelPicker]
             onToggleOpen={() => setShowModelPicker(!showModelPicker)}
@@ -179,12 +179,12 @@ export const DataConfigPage = () => {
 const containerStyle: React.CSSProperties = {
   display: "flex", 
   flexDirection: "column", 
-  height: "calc(100vh - 47px)",
+  height: "calc(100vh - 50px)",
   padding: "20px", 
   backgroundColor: "#121212", 
   color: "white",
   boxSizing: "border-box", 
-  overflow: "hidden"
+  overflow: "auto"
 };
 
 const topControlsRow: React.CSSProperties = {

@@ -84,31 +84,6 @@ export const ViewScriptPage = () => {
           <h2 style={styles.sectionTitleStyle}>
             <Save size={18} /> Parámetros de Entrenamiento
           </h2>
-          {/* CARD: Validación Cruzada */}
-          <section style={styles.cardStyle}>
-            <h3 style={styles.cardTitleStyle}>
-              <Activity size={16} /> Validación Cruzada (CV)
-            </h3>
-            <label style={styles.labelStyle}>
-              Número de Folds: <strong>{dossier?.user_constraints?.cv_strategy?.folds}</strong>
-            </label>
-          </section>
-          {/* CARD: Optimización de Hiperparámetros */}
-          <section style={styles.cardStyle}>
-            <h3 style={styles.cardTitleStyle}>
-              <Activity size={16} /> Hyperparameter Tuning (Optuna)
-            </h3>
-            <div style={styles.twoColGridStyle}>
-              <div>
-                <label style={styles.labelStyle}>Máx. Trials:</label>
-                <div style={styles.valueBadgeStyle}>{dossier?.user_constraints?.tuning_strategy?.max_trials || 50}</div>
-              </div>
-              <div>
-                <label style={styles.labelStyle}>Timeout (min):</label>
-                <div style={styles.valueBadgeStyle}>{dossier?.user_constraints?.tuning_strategy?.timeout || 30}</div>
-              </div>
-            </div>
-          </section>
           {/* CARD: Resumen de configuración */}
           <section style={styles.cardStyle}>
             <h3 style={styles.cardTitleStyle}>
@@ -141,7 +116,7 @@ const styles: Record<string, React.CSSProperties> = {
     height: "calc(100vh - 50px)",
     padding: "10px",
     boxSizing: "border-box",
-    overflow: "hidden",
+    overflow: "auto",
     fontFamily: "sans-serif",
     display: "flex",
     flexDirection: "column",

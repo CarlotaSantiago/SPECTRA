@@ -1,3 +1,10 @@
+"""
+Módulo de proxy para comunicación con el servicio de entrenamiento.
+
+Provee funciones para redirigir peticiones del frontend a la API
+del servicio secundario encargado de procesar los LLMs y entrenar modelos.
+"""
+
 import logging
 import os
 from typing import Any
@@ -17,6 +24,10 @@ _EMPTY_LLM_PROVIDERS: dict[str, Any] = {
 }
 
 def proxy_execute_script(data: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    """
+    Envía el script y los datos al servicio de entrenamiento para su ejecución.
+    Retorna la respuesta deserializada y el código HTTP.
+    """
     url = f"{TRAINING_SERVICE_URL}/process-state2/execute-script"
 
     try:
@@ -59,6 +70,10 @@ def proxy_execute_script(data: dict[str, Any]) -> tuple[dict[str, Any], int]:
     return body, response.status_code
 
 def proxy_process_state2(data: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    """
+    Hace proxy de los datos estructurados iniciales hacia el servicio de 
+    entrenamiento para iniciar la etapa 2 de inferencia (Stage 2).
+    """
     url = f"{TRAINING_SERVICE_URL}/process-state2"
     try:
         response = requests.post(
@@ -101,6 +116,10 @@ def proxy_process_state2(data: dict[str, Any]) -> tuple[dict[str, Any], int]:
 
 
 def proxy_llm_providers() -> tuple[dict[str, Any], int]:
+    """
+    Solicita al servicio de entrenamiento la lista de proveedores LLM
+    y modelos disponibles para exponerlos en el frontend.
+    """
     url = f"{TRAINING_SERVICE_URL}/llm/providers"
     try:
         response = requests.get(url, timeout=LLM_PROVIDERS_TIMEOUT)

@@ -171,21 +171,21 @@ export const ViewResultsPage = () => {
 };
 
 const styles: Record<string, React.CSSProperties> = {
-  containerStyle: { backgroundColor: "#0d0d0d", color: "white", minHeight: "100vh", padding: "30px", boxSizing: "border-box", overflowY: "auto", fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
-  headerStyle: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", borderBottom: "1px solid #1a1a1a", paddingBottom: "15px" },
+  containerStyle: { backgroundColor: "#0d0d0d", color: "white", height: "calc(100vh - 50px)", padding: "20px 30px", boxSizing: "border-box", overflow: "auto", display: "flex", flexDirection: "column", fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif" },
+  headerStyle: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", borderBottom: "1px solid #1a1a1a", paddingBottom: "10px", flexShrink: 0 },
   backBtnStyle: { background: "none", border: "none", color: "#648f8c", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", fontWeight: "500" },
-  contentStyle: { maxWidth: "1200px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }, // Regresado a 20px para mejor espaciado
-  kpiRowStyle: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px", marginBottom: "10px" },
-  kpiCardStyle: { backgroundColor: "#141414", border: "1px solid #222", borderRadius: "12px", padding: "20px", display: "flex", alignItems: "center", gap: "16px" },
+  contentStyle: { maxWidth: "1200px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "15px", flex: 1, width: "100%" },
+  kpiRowStyle: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "15px", flexShrink: 0 },
+  kpiCardStyle: { backgroundColor: "#141414", border: "1px solid #222", borderRadius: "12px", padding: "16px", display: "flex", alignItems: "center", gap: "16px" },
   kpiLabelStyle: { fontSize: "12px", color: "#666", fontWeight: "600", textTransform: "uppercase" },
-  gridStyle: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "25px" },
-  phaseCardStyle: { border: "1px solid", borderRadius: "16px", padding: "24px", display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "0 4px 30px rgba(0, 0, 0, 0.4)", backdropFilter: "blur(5px)" },
-  scoreBoxStyle: { display: "flex", flexDirection: "column", backgroundColor: "rgba(0,0,0,0.2)", padding: "16px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.03)", marginBottom: "16px" },
-  modelRowStyle: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", padding: "0 4px" },
+  gridStyle: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px", flex: 1, alignItems: "stretch" },
+  phaseCardStyle: { border: "1px solid", borderRadius: "16px", padding: "20px", display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "0 4px 30px rgba(0, 0, 0, 0.4)", backdropFilter: "blur(5px)" },
+  scoreBoxStyle: { display: "flex", flexDirection: "column", backgroundColor: "rgba(0,0,0,0.2)", padding: "12px 16px", borderRadius: "10px", border: "1px solid rgba(255,255,255,0.03)", marginBottom: "12px" },
+  modelRowStyle: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", padding: "0 4px" },
   modelBadgeStyle: { backgroundColor: "#1a1a1a", color: "#fff", fontSize: "12px", fontWeight: "bold", padding: "4px 10px", borderRadius: "6px", border: "1px solid #333" },
-  paramsWrapperStyle: { backgroundColor: "#080808", borderRadius: "10px", padding: "14px", border: "1px solid #1a1a1a" },
-  paramsHeaderStyle: { fontSize: "11px", color: "#555", fontWeight: "bold", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" },
-  badgeGridStyle: { display: "flex", flexWrap: "wrap", gap: "8px" },
+  paramsWrapperStyle: { backgroundColor: "#080808", borderRadius: "10px", padding: "12px", border: "1px solid #1a1a1a" },
+  paramsHeaderStyle: { fontSize: "11px", color: "#555", fontWeight: "bold", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "6px", marginBottom: "8px" },
+  badgeGridStyle: { display: "flex", flexWrap: "wrap", gap: "6px" },
   paramBadgeStyle: { backgroundColor: "#111", fontSize: "11px", padding: "4px 8px", borderRadius: "6px", border: "1px solid #222", fontFamily: "monospace" },
   errorStyle: { backgroundColor: "#121212", color: "white", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", gap: "20px" }
 };
