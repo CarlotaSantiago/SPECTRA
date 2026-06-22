@@ -2,7 +2,7 @@
 
 **Autor/a**: Carlota Santiago
 **Titulación**: Ingeniería Informática
-**Institución**: Universidad de Vigo (Asumiendo por la plataforma Moovi)
+**Institución**: Universidad de Vigo
 **Fecha**: Junio 2026
 
 ## 1. Descripción del Proyecto
@@ -20,32 +20,55 @@ El sistema está diseñado para:
 
 La entrega digital de este proyecto se estructura de la siguiente manera:
 
-* **`/Documentación`**:
+* **`/doc`**:
   * `Documentación.pdf`: Memoria principal del TFG con la fundamentación teórica, análisis de requisitos, diseño del sistema, manual de usuario y conclusiones.
-  * `AutoML_v3.pdf`: Documento técnico complementario sobre la arquitectura detallada.
 
-* **`/Código fuente`**:
+* **`Código fuente`**:
   * `/services/backend`: Contiene la lógica principal de Python, el generador de perfiles estadísticos (TOON), el gestor de orquestación, el entorno Sandbox y el bucle de Auto-Healing.
   * `/services/frontend`: Contiene la interfaz gráfica web de usuario mediante la cual se carga el dataset y se visualizan los scripts de entrenamiento y logs.
   * `docker-compose.yml`: Fichero de orquestación local para levantar los servicios del ecosistema.
   * `env`: Fichero con las variables de entorno de base.
 
-* **`/Distribuibles`**:
+* **`/dist`**:
   * Carpeta que contiene los archivos instalables y scripts de despliegue directo para montar SPECTRA en otra máquina, así como las dependencias paquetizadas (Ver la sección "Sobre los Distribuibles" más abajo).
 
 ## 3. Requisitos Previos e Instalación
 
 Para ejecutar SPECTRA desde el código fuente es necesario disponer de:
 - **Docker y Docker Compose**: Para levantar los entornos Sandbox y aislar el backend/frontend.
-- **Python 3.11+**: Si se desea ejecutar el backend en modo local o de desarrollo.
+- **Python 3.12**: Si se desea ejecutar el backend en modo local o de desarrollo.
+- **Node.js & NPM**: Para compilar e iniciar el servidor de desarrollo del Frontend.
 - **Ollama**: (O acceso a una API de LLM equivalente) Para proveer la inteligencia al modelo orquestador.
 
 ### Despliegue Rápido:
-1. Clonar o acceder a la carpeta de `/Código fuente`.
-2. Renombrar el archivo `env` a `.env` (si procede) y ajustar las URLs de Ollama.
-3. Ejecutar `docker-compose up --build` para levantar toda la infraestructura local.
-4. Acceder a la interfaz web (puerto por defecto definido en el frontend).
+El proyecto incluye scripts interactivos que comprueban las dependencias, descargan la última imagen del Sandbox, configuran los entornos virtuales e inician todos los servicios en segundo plano automáticamente.
 
-## 4. Notas Adicionales
+### Opción A: Sistemas Linux / macOS (`scriptLinux.sh`)
+1. Abre una terminal en la raíz de `Código fuente`.
+2. Otorga permisos de ejecución al script si es necesario:
+   ```bash
+   chmod +x scriptLinux.sh 
+   ```bash
+3. Ejecuta el script:
+  ```bash
+  ./scriptLinux.sh
+  ```bash
 
-Cualquier duda sobre el uso de la interfaz gráfica y los flujos de carga de datos (Data Discovery, Selección de targets, etc.) está detallada en el apartado "Manual de Usuario" dentro del `Documentación.pdf`.
+### Opción B: Sistemas Windows (`scriptWindows.bat`)
+1. Asegúrate de tener **Docker Desktop** abierto y activo.
+2. Haz doble clic sobre el archivo `scriptWindows.bat` o ejecútalo desde la consola de comandos (`cmd`) en la raíz del proyecto.
+
+
+## 5. Acceso al Sistema
+
+Una vez finalizada la ejecución de cualquiera de los dos scripts, los servicios de SPECTRA quedarán distribuidos y disponibles en los siguientes endpoints locales:
+
+* **Interfaz de Usuario (Frontend)**: [http://localhost:5173](http://localhost:5173)
+* **API REST del Sistema (Backend)**: [http://localhost:8001](http://localhost:8001)
+* **Documentación Interactiva de la API (Swagger)**: [http://localhost:8001/docs](http://localhost:8001/docs)
+
+
+## 6. Notas Adicionales
+
+* **Aislamiento de Procesos (Sandbox)**: El entrenamiento real de los modelos de Machine Learning generados por el LLM no ocurre en la máquina nativa; se despacha de forma aislada dentro del contenedor `spectra-training-service` descargado durante el inicio mediante Docker.
+* **Manual de Operación**: Cualquier duda sobre los flujos visuales de carga de datos (*Data Discovery*, selección de targets protegidos, etc.) está detallada rigurosamente en el capítulo **"Manual de Usuario"** de la memoria del TFG (`Documentación.pdf`).

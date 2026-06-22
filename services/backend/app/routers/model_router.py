@@ -1,7 +1,7 @@
 """
-Módulo de rutas para modelos y ejecución.
+Modulo de rutas para modelos y ejecucion.
 
-Controla la obtención de los modelos LLM disponibles, así como
+Controla la obtencion de los modelos LLM disponibles, asi como
 la segunda y tercera fase de la arquitectura (process_state_2, send-script).
 """
 import os
@@ -18,9 +18,17 @@ from app.services.training_service_proxy import (
     proxy_process_state2,
     proxy_execute_script
 )
+from app.services.llm.script_patcher import (
+    extract_user_training_params,
+    inject_light_params,
+    patch_training_params,
+    LIGHT_CV_FOLDS,
+    LIGHT_MAX_TRIALS,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Models & Execution"])
+
 
 @router.get("/models", response_model=ModelsResponse)
 def get_available_models():
@@ -36,7 +44,7 @@ def get_available_models():
         response_local = requests.get("http://localhost:11434/api/tags", timeout=2)
         if response_local.status_code == 200:
             local_models = [m["name"] for m in response_local.json().get("models", [])]
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.warning("Ollama local no disponible: %s", exc)
         local_models = ["llama3", "qwen2.5-coder:7b"]
 
@@ -51,10 +59,11 @@ def get_available_models():
                 model_id = model.get("id")
                 if model_id:
                     profesor_models.append(f"ia.drordas.info/{model_id}")
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.error("[BACKEND] No se pudo conectar a la URL externa: %s", exc)
 
     return ModelsResponse(status="ok", models=local_models + profesor_models)
+
 
 @router.get("/llm/providers")
 def get_llm_providers():
@@ -62,34 +71,90 @@ def get_llm_providers():
     try:
         body, status = proxy_llm_providers()
         return JSONResponse(content=body, status_code=status)
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
 
 @router.post("/process-state2")
 def process_state_2(data: Dict[str, Any]):
     """
-    Ejecuta el Stage 2 llamando al servicio proxy, propagando el dossier.
+    Ejecuta el Stage 2 llamando al servicio proxy.
+
+    Estrategia de generacion rapida + parcheo posterior:
+      1. Extrae los parametros reales del usuario (cv_folds, max_trials).
+      2. Inyecta valores minimos (cv_folds=2, max_trials=2) en el payload
+         antes de enviarlo al training service para que el LLM genere el
+         script sin un entrenamiento largo.
+      3. Tras recibir el script generado, lo parchea con los valores reales
+         usando script_patcher (solo cv_folds y max_trials; timeout intacto).
     """
     try:
-        body, status_code = proxy_process_state2(data)
+        # 1. Guardar los valores reales que configuro el usuario
+        real_params = extract_user_training_params(data)
+        logger.info(
+            "Parametros reales del usuario: cv_folds=%s, max_trials=%s",
+            real_params["cv_folds"], real_params["max_trials"]
+        )
 
-        # Propagamos el dossier o los constraints de vuelta al frontend para el state 3
+        # 2. Inyectar valores light antes de llamar al proxy
+        light_payload = inject_light_params(data)
+        logger.info(
+            "Enviando al training service con valores light: cv_folds=%d, max_trials=%d",
+            LIGHT_CV_FOLDS, LIGHT_MAX_TRIALS
+        )
+
+        body, status_code = proxy_process_state2(light_payload)
+
+        # 3. Parchar el script generado con los valores reales del usuario
+        # El training service puede devolver el script en distintas claves
+        script_key = None
+        if "script" in body:
+            script_key = "script"
+        elif "generated_script" in body:
+            script_key = "generated_script"
+
+        # Solo parcheamos cv_folds y max_trials; el timeout lo deja el LLM tal cual
+        has_real_params = (
+            real_params["cv_folds"] is not None
+            or real_params["max_trials"] is not None
+        )
+
+        if script_key and has_real_params:
+            script_raw = body[script_key]
+            patched_script, applied = patch_training_params(
+                script=script_raw,
+                max_trials=real_params["max_trials"],
+                cv_folds=real_params["cv_folds"],
+                timeout_minutes=None,  # timeout no se modifica
+            )
+            body[script_key] = patched_script
+            body["patch_applied"] = applied
+            logger.info("Script parcheado con valores reales. Variables sustituidas: %s", applied)
+        else:
+            logger.info(
+                "No se encontro script en la respuesta o sin parametros de usuario para parchar. "
+                "script_key=%s, has_real_params=%s",
+                script_key, has_real_params
+            )
+
+        # 4. Propagamos el dossier original (con valores reales) al frontend para el state 3
         dossier_data = data.get("dossier", {})
         body["dossier"] = {
             "data": dossier_data
         }
 
         return JSONResponse(content=body, status_code=status_code)
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.error("process_state_2 proxy failed: %s", exc)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
 
 @router.post("/send-script")
 def model_train(data: Dict[str, Any]):
     """
-    Recibe el script Python validado (state 3) y lo envía al
-    servicio proxy de ejecución de entrenamiento, luego recolecta
-    las métricas resultantes y las retorna al cliente.
+    Recibe el script Python validado (state 3) y lo envia al
+    servicio proxy de ejecucion de entrenamiento, luego recolecta
+    las metricas resultantes y las retorna al cliente.
     """
     try:
         script = data.get("script") or "# No script provided"
@@ -121,9 +186,9 @@ def model_train(data: Dict[str, Any]):
 
         # 3. Se ejecuta el entrenamiento
         proxy_body, proxy_status = proxy_execute_script(payload_to_proxy)
-        logger.info("proxy_execute_script → status=%s", proxy_status)
+        logger.info("proxy_execute_script -> status=%s", proxy_status)
 
-        # Si el servicio de entrenamiento devolvió error, lo propagamos
+        # Si el servicio de entrenamiento devolvio error, lo propagamos
         if proxy_status not in (200, 201):
             return JSONResponse(
                 content={
@@ -144,9 +209,9 @@ def model_train(data: Dict[str, Any]):
         if os.path.exists(metrics_file_path):
             with open(metrics_file_path, "r", encoding="utf-8") as f_in:
                 structured_body = json.load(f_in)
-            logger.info("Métricas cargadas con éxito")
+            logger.info("Metricas cargadas con exito")
         else:
-            logger.warning("No se encontró metrics.json en %s", metrics_file_path)
+            logger.warning("No se encontro metrics.json en %s", metrics_file_path)
             return JSONResponse(
                 content={
                     "status": "error",
@@ -158,6 +223,6 @@ def model_train(data: Dict[str, Any]):
         # 5. Enviamos al frontend el JSON estructurado
         return JSONResponse(content=structured_body, status_code=200)
 
-    except Exception as exc:
+    except Exception as exc:  # pylint: disable=broad-exception-caught
         logger.exception("Error en /send-script: %s", exc)
         return JSONResponse(content={"status": "error", "message": str(exc)}, status_code=500)
